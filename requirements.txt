@@ -8,3 +8,5 @@ torchaudio==0.10.1+cu113
 #
 matplotlib==3.5.1
 tqdm==4.62.3
+librosa==0.8.1
+numpy==1.21
