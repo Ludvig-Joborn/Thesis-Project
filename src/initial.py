@@ -1,4 +1,3 @@
-from re import sub
 import torch
 import torchaudio
 import torchaudio.functional as F
@@ -7,13 +6,28 @@ import matplotlib.pyplot as plt
 import librosa
 from torch import nn
 from models.basic_nn import NeuralNetwork as NN
+from datasets.datasets_utils import *
+from datasets.desed import DESED_Strong
+from config import *
 
+# Use cuda if available
 device = "cuda" if torch.cuda.is_available() else "cpu"
-# print(f"Using {device} device")
 
 RECORD_LEN_SECONDS = 10
 
 train_data = torchaudio.datasets.TEDLIUM(root="data", subset="train", download=False)
+test_data = torchaudio.datasets.TEDLIUM(root="data", subset="test", download=False)
+
+DES = DESED_Strong(
+    "DESED NUTS",
+    PATH_TO_PUBLIC_EVAL_DESED_TSV,
+    PATH_TO_PUBLIC_EVAL_DESED_WAVS,
+    PUBLIC_EVAL_DESED_CLIP_LEN_SECONDS,
+)
+
+print(DES)
+print(len(DES))
+print(DES[691])
 
 # One sample
 (
@@ -26,44 +40,18 @@ train_data = torchaudio.datasets.TEDLIUM(root="data", subset="train", download=F
 ) = train_data.__getitem__(10)
 
 ### Sequence the waveform into chunks of RECORD_LEN_SECONDS
-print(waveform.shape)
-print(sample_rate * RECORD_LEN_SECONDS)
+print("\nBefore waveform.shape:", waveform.shape)
+print("target len:", sample_rate * RECORD_LEN_SECONDS)
 print()
 
-list_ = []
+waveform = to_mono(waveform)
 
-waveform_len = waveform.shape[1]
-i = 0
-while waveform_len > sample_rate * RECORD_LEN_SECONDS:
-    list_.append(
-        waveform[
-            :,
-            i : (i + sample_rate * RECORD_LEN_SECONDS),
-        ]
-    )
-    i += sample_rate * RECORD_LEN_SECONDS
-    waveform_len = waveform_len - sample_rate * RECORD_LEN_SECONDS
+# list_ = split_waveform(waveform, sample_rate, RECORD_LEN_SECONDS)
+list_ = [trim_audio(waveform, sample_rate, RECORD_LEN_SECONDS)]
 
-print("waveform_len for last element:", waveform_len)
-
-if waveform_len <= sample_rate * RECORD_LEN_SECONDS and waveform_len > 0:
-    num_missing_samples = sample_rate * RECORD_LEN_SECONDS - waveform_len
-    last_dim_padding = (0, num_missing_samples)
-    list_.append(
-        torch.nn.functional.pad(
-            waveform[
-                :,
-                i : i + (sample_rate * RECORD_LEN_SECONDS + num_missing_samples),
-            ],
-            last_dim_padding,
-        )
-    )
-
-print("len:", len(list_))
-[print("shape:", (l.shape[0], l.shape[1]), " | elements:", l) for l in list_]
-
-
-test_data = torchaudio.datasets.TEDLIUM(root="data", subset="test", download=False)
+print("After:")
+print("list of waveforms -> len:", len(list_))
+[print("shape:", (l.shape[0], l.shape[1]), "| elements:", l) for l in list_]
 
 
 def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
