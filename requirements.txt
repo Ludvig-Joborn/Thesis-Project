@@ -10,3 +10,4 @@ matplotlib==3.5.1
 tqdm==4.62.3
 librosa==0.8.1
 numpy==1.21
+pandas==1.4.0
