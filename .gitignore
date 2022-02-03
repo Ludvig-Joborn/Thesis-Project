@@ -131,3 +131,4 @@ dmypy.json
 # User defined
 data/
 .vscode/
+logs/
