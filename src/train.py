@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 
 # User defined imports
 from config import *
-from melspec import *
+from utils import *
 from datasets.datasets_utils import *
 from datasets.desed import DESED_Strong
 
