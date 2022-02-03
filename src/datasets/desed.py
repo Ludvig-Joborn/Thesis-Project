@@ -11,11 +11,7 @@ from datasets.datasets_utils import *
 
 class DESED_Strong(Dataset):
     def __init__(
-        self,
-        name: str,
-        annotations_tsv: Path,
-        wav_dir: Path,
-        clip_len_seconds: int,
+        self, name: str, annotations_tsv: Path, wav_dir: Path, clip_len_seconds: int
     ):
         self.name = name
         self.df_annotations = pd.read_table(annotations_tsv)
@@ -26,7 +22,7 @@ class DESED_Strong(Dataset):
     def __len__(self) -> int:
         return len(self.filenames)
 
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, int, pd.DataFrame]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, torch.Tensor]:
         wav_path = self.wav_dir / self.filenames[idx]
         if not wav_path.exists():
             raise ValueError(f"File {wav_path} does not exist")
@@ -42,7 +38,10 @@ class DESED_Strong(Dataset):
         # Get annotations as a pandas dataframe
         labels = get_rows_from_annotations(self.df_annotations, self.filenames[idx])
 
-        return waveform, sample_rate, labels
+        # Convert labels to one hot encoding of speech activity
+        labeled_frames = label_frames(labels)
+
+        return waveform, sample_rate, labeled_frames
 
     def __str__(self) -> str:
         return f"{self.name} dataset"

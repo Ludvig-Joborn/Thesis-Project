@@ -1,7 +1,11 @@
 import torch
 import pandas as pd
 from pathlib import Path
+import math
 from typing import List
+
+# User defined imports
+from config import HOP_LENGTH, SAMPLE_RATE, CLIP_LEN_SECONDS, NR_CLASSES
 
 
 def get_wav_filenames(path: Path) -> List[str]:
@@ -35,7 +39,7 @@ def get_rows_from_annotations(df: pd.DataFrame, filename: str) -> pd.DataFrame:
 def to_mono(waveform: torch.Tensor) -> torch.Tensor:
     # If multiple channels are present, average them
     return (
-        torch.mean(waveform, 0).view(1, waveform.shape[1])
+        torch.unsqueeze(torch.mean(waveform, 0), 0)
         if waveform.shape[0] > 1
         else waveform
     )
@@ -91,3 +95,33 @@ def trim_audio(waveform: torch.Tensor, sr: int, len_seconds: int) -> torch.Tenso
         half_onset = (waveform_len - target_len) // 2
         waveform = waveform[:, half_onset : target_len + half_onset]
     return waveform
+
+
+def label_frames(labels: pd.DataFrame) -> torch.Tensor:
+    """
+    Converts labels in seconds to frames and returns an array
+    where '1' indicates the presence of speech.
+    """
+    if NR_CLASSES == 1:
+        frames = math.ceil((CLIP_LEN_SECONDS * SAMPLE_RATE) / HOP_LENGTH)
+
+        # Create a tensor of zeros
+        labeled_frames = torch.zeros(NR_CLASSES, frames)
+
+        # Get rows from annotations with speech
+        speech = labels.loc[labels["Speech"] == 1]
+
+        if speech.empty:
+            return labeled_frames
+
+        # Map seconds to frame number. Round onset down and offset up.
+        for _, row in speech.iterrows():
+            onset = math.floor(frames * row["onset"] / CLIP_LEN_SECONDS)
+            offset = math.ceil(frames * row["offset"] / CLIP_LEN_SECONDS)
+            labeled_frames[:, onset : (offset + 1)] = 1
+
+        return labeled_frames
+    else:
+        raise NotImplementedError(
+            "Labeling of frames is not implemented for more than one class."
+        )

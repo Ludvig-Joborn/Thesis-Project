@@ -10,6 +10,7 @@ from pathlib import Path
 
 ### GLOBAL ###
 CLIP_LEN_SECONDS = 10
+NR_CLASSES = 1
 
 ### DESED ###
 # Clip length of audio files
@@ -41,9 +42,43 @@ PATH_TO_PUBLIC_EVAL_DESED_WAVS = Path(
     "C:/Users/ludvi/Desktop/Thesis-Project/data/desed_real_eval/audio/eval/public"
 )
 
+
+######################
+### MELSPECTROGRAM ###
+######################
+
+SAMPLE_RATE = 44100
+N_FFT = 2048
+WIN_LENGTH = None
+N_MELS = 128
+HOP_LENGTH = 1024
+FMIN = 0
+FMAX = 8000
+
+PARAMS_TO_MELSPEC = {
+    "sr": SAMPLE_RATE,
+    "n_fft": N_FFT,
+    "win_length": WIN_LENGTH,
+    "n_mels": N_MELS,
+    "hop_length": HOP_LENGTH,
+    "window": "hann",
+    "center": True,
+    "pad_mode": "reflect",
+    "power": 2.0,
+    "htk": False,
+    "fmin": FMIN,
+    "fmax": FMAX,
+    "norm": 1,
+    "trainable_mel": False,
+    "trainable_STFT": False,
+    "verbose": True,
+}
+
 ##############
 ### MODELS ###
 ##############
+EPOCHS = 2
+BATCH_SIZE = 8
 
 
 ################
