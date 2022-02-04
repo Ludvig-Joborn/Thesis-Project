@@ -12,3 +12,4 @@ librosa==0.8.1
 numpy==1.21
 pandas==1.4.0
 nnAudio==0.3.1
+julius==0.2.6
