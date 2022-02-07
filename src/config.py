@@ -63,7 +63,7 @@ PARAMS_TO_MELSPEC = {
     "center": True,
     "pad_mode": "reflect",
     "power": 2.0,
-    "htk": False,
+    "htk": True,  # Sets to log-scale
     "fmin": FMIN,
     "fmax": FMAX,
     "norm": 1,
@@ -75,7 +75,7 @@ PARAMS_TO_MELSPEC = {
 ##############
 ### MODELS ###
 ##############
-EPOCHS = 2
+EPOCHS = 1
 BATCH_SIZE = 8
 
 
