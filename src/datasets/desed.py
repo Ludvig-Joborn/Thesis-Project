@@ -41,7 +41,25 @@ class DESED_Strong(Dataset):
         # Convert labels to one hot encoding of speech activity
         labeled_frames = label_frames(labels)
 
+        # TODO: remove sample_rate from return, use get_sample_rate() instead
         return waveform, sample_rate, labeled_frames
 
     def __str__(self) -> str:
         return f"{self.name} dataset"
+
+    def get_sample_rate(self) -> int:
+        """
+        Assumes that all audio files in 'wav_dir' have the same sample rate.
+        """
+        i = 0
+        wav_path = self.wav_dir / self.filenames[i]
+        while not wav_path.exists():
+            i += 1
+            wav_path = self.wav_dir / self.filenames[i]
+            if i > self.__len__():
+                raise ValueError(
+                    f"Could not locate audio files in path: {self.wav_dir}"
+                )
+
+        _, sample_rate = torchaudio.load(wav_path)
+        return sample_rate
