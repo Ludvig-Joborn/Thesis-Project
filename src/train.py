@@ -40,16 +40,16 @@ def load_datasets():
     # Load dataset DESED Validation (Synthetic)
     DESED_val = DESED_Strong(
         "DESED Synthetic Validation",
-        PATH_TO_SYNTH_VALIDATION_DESED_TSV,
-        PATH_TO_SYNTH_VALIDATION_DESED_WAVS,
+        PATH_TO_SYNTH_VAL_DESED_TSV,
+        PATH_TO_SYNTH_VAL_DESED_WAVS,
         DESED_CLIP_LEN_SECONDS,
     )
 
     # Load dataset DESED Test (Public Evaluation)
     DESED_test = DESED_Strong(
         "DESED Public Evaluation",
-        PATH_TO_PUBLIC_EVAL_DESED_TSV,
-        PATH_TO_PUBLIC_EVAL_DESED_WAVS,
+        PATH_TO_PUBLIC_TEST_DESED_TSV,
+        PATH_TO_PUBLIC_TEST_DESED_WAVS,
         DESED_CLIP_LEN_SECONDS,
     )
 
