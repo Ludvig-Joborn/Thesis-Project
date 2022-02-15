@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from torch import float32, nn
+from torch import nn
 from tqdm import tqdm
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
@@ -11,12 +11,11 @@ from typing import Tuple
 from config import *
 from utils import *
 from datasets.datasets_utils import *
-from datasets.desed import DESED_Strong
 from logger import CustomLogger as Logger
 from models.basic_nn import NeuralNetwork as NN
-from datasets.dataset_handler import DatasetManager, DatasetWrapper
+from datasets.dataset_handler import DatasetWrapper
+from models.model_utils import nr_parameters
 
-# from models.model_utils import nr_parameters
 
 log = Logger("train-Logger")
 
@@ -186,8 +185,11 @@ if __name__ == "__main__":
     scheduler2 = MultiStepLR(optimizer, milestones=[30, 80], gamma=0.1)
 
     ### Train Model ###
-
     log.info("Training", add_header=True)
+
+    # Log number of parameters to train in network
+    log.info(f"Number of parameters to train: {nr_parameters(model)}")
+
     tr_epoch_loss, val_epoch_loss = train(
         DS_train_loader,
         DS_val_loader,
@@ -199,6 +201,6 @@ if __name__ == "__main__":
     )
 
     ### Test Model (temporary) ###
-
     log.info("Testing", add_header=True)
+
     te_epoch_loss = test(DS_test_loader, model, criterion)
