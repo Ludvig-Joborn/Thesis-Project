@@ -41,8 +41,7 @@ class DESED_Strong(Dataset):
         # Convert labels to one hot encoding of speech activity
         labeled_frames = label_frames(labels)
 
-        # TODO: remove sample_rate from return, use get_sample_rate() instead
-        return waveform, sample_rate, labeled_frames
+        return waveform, labeled_frames
 
     def __str__(self) -> str:
         return f"{self.name} dataset"
