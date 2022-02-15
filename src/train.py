@@ -14,6 +14,7 @@ from datasets.datasets_utils import *
 from datasets.desed import DESED_Strong
 from logger import CustomLogger as Logger
 from models.basic_nn import NeuralNetwork as NN
+from datasets.dataset_handler import DatasetManager, DatasetWrapper
 
 # from models.model_utils import nr_parameters
 
@@ -25,50 +26,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 if device == "cpu":
     log.error("Please use a GPU to train this model.")
     exit()
-
-# Test code to plot mel spectrogram
-def load_datasets():
-    # TODO: Use dataset handler
-    # Load dataset DESED Train (Synthetic)
-    DESED_train = DESED_Strong(
-        "DESED Synthetic Training",
-        PATH_TO_SYNTH_TRAIN_DESED_TSV,
-        PATH_TO_SYNTH_TRAIN_DESED_WAVS,
-        DESED_CLIP_LEN_SECONDS,
-    )
-
-    # Load dataset DESED Validation (Synthetic)
-    DESED_val = DESED_Strong(
-        "DESED Synthetic Validation",
-        PATH_TO_SYNTH_VAL_DESED_TSV,
-        PATH_TO_SYNTH_VAL_DESED_WAVS,
-        DESED_CLIP_LEN_SECONDS,
-    )
-
-    # Load dataset DESED Test (Public Evaluation)
-    DESED_test = DESED_Strong(
-        "DESED Public Evaluation",
-        PATH_TO_PUBLIC_TEST_DESED_TSV,
-        PATH_TO_PUBLIC_TEST_DESED_WAVS,
-        DESED_CLIP_LEN_SECONDS,
-    )
-
-    _, sample_rate, __ = DESED_train.__getitem__(0)  # Get sample rate
-    tr_loader = DataLoader(
-        DESED_train,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        pin_memory=True,
-        num_workers=0,
-    )
-    val_loader = DataLoader(
-        DESED_val, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=0
-    )
-    te_loader = DataLoader(
-        DESED_test, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=2
-    )
-
-    return sample_rate, tr_loader, val_loader, te_loader
 
 
 def train(
@@ -100,7 +57,7 @@ def train(
         for i, sample in enumerate(
             tqdm(iterable=tr_loader, desc="Training Batch progress:")
         ):
-            waveform, _, labels = sample
+            waveform, labels = sample
 
             # Send parameters to device
             waveform = waveform.to(device, non_blocking=True)
@@ -141,7 +98,7 @@ def train(
             for i, sample in enumerate(
                 tqdm(iterable=val_loader, desc="Validation Batch progress:")
             ):
-                waveform, _, labels = sample
+                waveform, labels = sample
 
                 # Send parameters to device
                 waveform = waveform.to(device, non_blocking=True)
@@ -181,7 +138,7 @@ def test(te_loader: DataLoader, model, criterion) -> float:
         for i, sample in enumerate(
             tqdm(iterable=te_loader, desc="Test Batch progress:")
         ):
-            waveform, _, labels = sample
+            waveform, labels = sample
 
             # Send parameters to device
             waveform = waveform.to(device, non_blocking=True)
@@ -201,27 +158,47 @@ def test(te_loader: DataLoader, model, criterion) -> float:
 
 
 if __name__ == "__main__":
-    sample_rate, tr_loader, val_loader, te_loader = load_datasets()
-    # Prerequisite: Sample rate is the same for all clips in the dataset
+
+    ### Load Datasets ###
+
+    # Load datasets via DatasetWrapper
+    DW = DatasetWrapper()
+    DS_train_loader = DW.get_train_loader()
+    DS_val_loader = DW.get_val_loader()
+    DS_test_loader = DW.get_test_loader()
+
+    # Prerequisite: All datasets have the same sample rate.
+    sample_rate = DW.get_train_ds().get_sample_rate()
+
+    ### Declare Model ###
+
+    # Network
     model = NN(sample_rate, SAMPLE_RATE).to(device, non_blocking=True)
+
+    # Loss function
     criterion = nn.MSELoss()
 
     # optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0001)
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-    # Use schedulers ?
+    # Schedulers for updating learning rate
     scheduler1 = ExponentialLR(optimizer, gamma=0.9)
     scheduler2 = MultiStepLR(optimizer, milestones=[30, 80], gamma=0.1)
 
+    ### Train Model ###
+
     log.info("Training", add_header=True)
     tr_epoch_loss, val_epoch_loss = train(
-        tr_loader,
-        val_loader,
+        DS_train_loader,
+        DS_val_loader,
         model,
         criterion,
         optimizer,
         scheduler1,
         scheduler2,
     )
+
+    ### Test Model (temporary) ###
+
     log.info("Testing", add_header=True)
-    te_epoch_loss = test(te_loader, model, criterion)
+    te_epoch_loss = test(DS_test_loader, model, criterion)
