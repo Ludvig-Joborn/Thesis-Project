@@ -17,16 +17,6 @@ from datasets.dataset_handler import DatasetWrapper
 from models.model_utils import nr_parameters
 
 
-log = Logger("train-Logger")
-
-# Use cuda if available
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-if device == "cpu":
-    log.error("Please use a GPU to train this model.")
-    exit()
-
-
 def train(
     tr_loader: DataLoader,
     val_loader: DataLoader,
@@ -35,6 +25,7 @@ def train(
     optimizer,
     scheduler1,
     scheduler2,
+    log: Logger,
 ) -> Tuple[List[float], float]:
     """
     Training loop. Uses validation data for early stopping.
@@ -129,7 +120,7 @@ def train(
     return epoch_losses, min_validation_loss / (i + 1)
 
 
-def test(te_loader: DataLoader, model, criterion) -> float:
+def test(te_loader: DataLoader, model, criterion, log: Logger) -> float:
     # TODO: Move to eval.py
     # TODO: accuracy
     test_loss, acc = 0, []
@@ -157,6 +148,16 @@ def test(te_loader: DataLoader, model, criterion) -> float:
 
 
 if __name__ == "__main__":
+
+    ### MISC ###
+    log = Logger(LOGGER_TRAIN)
+
+    # Use cuda if available
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if device == "cpu":
+        log.error("Please use a GPU to train this model.")
+        exit()
 
     ### Load Datasets ###
 
@@ -198,9 +199,10 @@ if __name__ == "__main__":
         optimizer,
         scheduler1,
         scheduler2,
+        log,
     )
 
     ### Test Model (temporary) ###
     log.info("Testing", add_header=True)
 
-    te_epoch_loss = test(DS_test_loader, model, criterion)
+    te_epoch_loss = test(DS_test_loader, model, criterion, log)
