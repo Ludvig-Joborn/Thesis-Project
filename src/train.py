@@ -149,6 +149,9 @@ def test(te_loader: DataLoader, model, criterion, log: Logger) -> float:
 
 if __name__ == "__main__":
 
+    # Used for optimizing CNN training (when data is of same-sized inputs)
+    torch.backends.cudnn.benchmark = True
+
     ### MISC ###
     log = Logger(LOGGER_TRAIN)
 
