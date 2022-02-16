@@ -26,7 +26,7 @@ class CustomLogger:
         p = Path(log_dir)
         if not p.exists():
             p.mkdir(parents=True, exist_ok=True)
-        filename = f"{log_dir}{get_datetime()}.log"
+        filename = f"{log_dir}{name.strip('-')[0]}{get_datetime()}.log"
 
         # Create handlers
         self.console_handler = logging.StreamHandler()

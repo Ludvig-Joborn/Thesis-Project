@@ -99,3 +99,5 @@ BATCH_SIZE = 8
 ############
 ### MISC ###
 ############
+LOGGER_TRAIN = "train-logger"
+LOGGER_TEST = "test-logger"
