@@ -14,12 +14,14 @@ from datasets.datasets_utils import *
 from logger import CustomLogger as Logger
 from models.basic_nn import NeuralNetwork as NN
 from datasets.dataset_handler import DatasetWrapper
-from models.model_utils import nr_parameters
+from models.model_utils import nr_parameters, activation, update_acc
 
 
 def train(
     tr_loader: DataLoader,
+    len_tr: int,
     val_loader: DataLoader,
+    len_val: int,
     model,
     criterion,
     optimizer,
@@ -29,10 +31,9 @@ def train(
 ) -> Tuple[List[float], float]:
     """
     Training loop. Uses validation data for early stopping.
-
     """
-    # TODO: accuracy
-    epoch_losses, epoch_accs = [], []
+    # Tracks training losses and accuracies across epochs
+    tr_epoch_losses, tr_epoch_accs = [], []
 
     # Used for early stopping
     min_validation_loss = np.inf
@@ -40,8 +41,14 @@ def train(
     for epoch in range(1, EPOCHS + 1):
         log.info(f"Epoch {epoch}")
 
-        running_losses, running_loss = [], 0
-        epoch_loss = 0
+        # Track loss while epoch is running
+        running_loss = 0
+        # Track loss for a whole epoch
+        training_loss = 0
+
+        # Track correct and total predictions to calculate epoch accuracy
+        correct = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
+        total = 0
 
         ##### Model training #####
         for i, sample in enumerate(
@@ -62,10 +69,11 @@ def train(
             loss.backward()
             optimizer.step()
 
-            # Track loss statistics
+            # Track statistics
             loss = loss.detach()
             running_loss += loss
-            epoch_loss += loss
+            training_loss += loss
+            correct[i], total = update_acc(activation(outputs), labels, total)
 
             # log every 100 batches
             if i % 100 == 99:
@@ -73,17 +81,36 @@ def train(
                     f"[{epoch}, {i + 1:5d}] loss: {running_loss / 100:.3f}",
                     display_console=False,
                 )
-                # running_losses.append(running_loss.item())
                 running_loss = 0.0
 
         # Update learning_rate
         scheduler1.step()
         scheduler2.step()
 
-        epoch_losses.append(epoch_loss.item() / (i + 1))
+        # Log training loss and accuracy
+        log.info(
+            f"Epoch {epoch}: Average training loss: {training_loss.item()/(i+1)}",
+            display_console=False,
+        )
+        log.info(
+            f"Epoch {epoch}: Average training accuracy: {correct.sum().item() / total}",
+            display_console=False,
+        )
+
+        # Save this epoch's training loss and accuracy
+        tr_epoch_losses.append(training_loss.item() / (i + 1))
+        tr_epoch_accs.append(correct.sum().item() / total)
 
         ##### Model validation #####
+        # Tracks validation loss and accuracy across epochs
+        val_epoch_losses, val_epoch_accs = [], []
+        # Track validation loss
         validation_loss = 0
+
+        # Track correct and total predictions to calculate epoch accuracy
+        correct = torch.zeros(-(len_val // -BATCH_SIZE)).to(device, non_blocking=True)
+        total = 0
+
         with torch.no_grad():
             for i, sample in enumerate(
                 tqdm(iterable=val_loader, desc="Validation Batch progress:")
@@ -100,11 +127,21 @@ def train(
 
                 # Track loss statistics
                 validation_loss += loss
+                correct[i], total = update_acc(activation(outputs), labels, total)
 
+            # Log validation loss and accuracy
             log.info(
-                f"Average validation loss: {validation_loss.item()/(i+1)}",
+                f"Epoch {epoch}: Average validation loss: {validation_loss.item()/(i+1)}",
                 display_console=False,
             )
+            log.info(
+                f"Epoch {epoch}: Average validation acc: {correct.sum().item() / total}",
+                display_console=False,
+            )
+
+            # Save this epoch's training loss and accuracy
+            val_epoch_losses.append(validation_loss.item() / (i + 1))
+            val_epoch_accs.append(correct.sum().item() / total)
 
             # Early stopping:
             # Has validation loss decreased? If yes, keep training. If no, stop training (overfit).
@@ -115,15 +152,28 @@ def train(
                     f"Model overfitting occurred at epoch {epoch}. Halting training.",
                     display_console=False,
                 )
-                return epoch_losses, min_validation_loss / (i + 1)
+                return (
+                    tr_epoch_losses,
+                    tr_epoch_accs,
+                    val_epoch_losses,
+                    val_epoch_accs,
+                )
 
-    return epoch_losses, min_validation_loss / (i + 1)
+    return (tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs)
 
 
-def test(te_loader: DataLoader, model, criterion, log: Logger) -> float:
+def test(te_loader: DataLoader, len_te: int, model, criterion, log: Logger) -> float:
+    """
+    Test loop. Calculates test loss and accuracy.
+    """
     # TODO: Move to eval.py
-    # TODO: accuracy
-    test_loss, acc = 0, []
+    # Track test loss
+    test_loss = 0
+
+    # Track correct and total predictions to calculate test accuracy
+    correct = torch.zeros(-(len_te // -BATCH_SIZE)).to(device, non_blocking=True)
+    total = 0
+
     with torch.no_grad():
         for i, sample in enumerate(
             tqdm(iterable=te_loader, desc="Test Batch progress:")
@@ -140,11 +190,15 @@ def test(te_loader: DataLoader, model, criterion, log: Logger) -> float:
 
             # Track loss statistics
             test_loss += loss
+            correct[i], total = update_acc(activation(outputs), labels, total)
 
+    # Log test loss and accuracy
     test_loss = test_loss.item()
+    test_acc = correct.sum().item() / total
     log.info(f"Average testing loss: {test_loss/(i+1)}", display_console=False)
+    log.info(f"Average test accuracy: {test_acc}", display_console=True)
 
-    return test_loss
+    return test_loss, test_acc
 
 
 if __name__ == "__main__":
@@ -170,6 +224,14 @@ if __name__ == "__main__":
     DS_val_loader = DW.get_val_loader()
     DS_test_loader = DW.get_test_loader()
 
+    DS_train = DW.get_train_ds()
+    DS_val = DW.get_val_ds()
+    DS_test = DW.get_test_ds()
+
+    len_tr = len(DS_train)
+    len_val = len(DS_val)
+    len_te = len(DS_test)
+
     # Prerequisite: All datasets have the same sample rate.
     sample_rate = DW.get_train_ds().get_sample_rate()
 
@@ -194,9 +256,11 @@ if __name__ == "__main__":
     # Log number of parameters to train in network
     log.info(f"Number of parameters to train: {nr_parameters(model)}")
 
-    tr_epoch_loss, val_epoch_loss = train(
+    tr_epoch_losses, tr_epoch_accs, val_epoch_loss, val_epoch_accs = train(
         DS_train_loader,
+        len_tr,
         DS_val_loader,
+        len_val,
         model,
         criterion,
         optimizer,
@@ -208,4 +272,4 @@ if __name__ == "__main__":
     ### Test Model (temporary) ###
     log.info("Testing", add_header=True)
 
-    te_epoch_loss = test(DS_test_loader, model, criterion, log)
+    te_loss, te_acc = test(DS_test_loader, len_te, model, criterion, log)
