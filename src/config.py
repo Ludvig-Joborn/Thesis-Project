@@ -85,6 +85,8 @@ PARAMS_TO_MELSPEC = {
 EPOCHS = 1
 BATCH_SIZE = 8
 
+ACT_THRESHOLD = 0.5
+
 
 ################
 ### TRAINING ###
