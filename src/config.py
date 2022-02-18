@@ -82,15 +82,34 @@ PARAMS_TO_MELSPEC = {
 ##############
 ### MODELS ###
 ##############
-EPOCHS = 1
+EPOCHS = 3
 BATCH_SIZE = 8
 
 ACT_THRESHOLD = 0.5
+
+### Save & Load Model ###
+LOAD_MODEL = False
+LOAD_MODEL_PATH = Path("saved_models/2022-02-18_17-54.pt")
 
 
 ################
 ### TRAINING ###
 ################
+
+### Optimizer Adam ###
+LR_adam = 0.01
+WD = 0.0001
+
+### Optimizer SGD ###
+LR_sgd = 0.001
+MOMENTUM = 0.9
+
+### Scheduler 1 ###
+GAMMA_1 = 0.9
+
+### Scheduler 2 ###
+GAMMA_2 = 0.1
+MILESTONES = [15, 40, 75]
 
 
 ##################

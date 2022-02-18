@@ -1,11 +1,9 @@
 import logging
-from datetime import datetime
 from pathlib import Path
 import textwrap
 
-
-def get_datetime():
-    return datetime.now().strftime("%Y-%m-%d_%H-%M")
+# User defined imports
+from utils import get_datetime
 
 
 class CustomLogger:

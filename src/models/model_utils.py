@@ -1,8 +1,11 @@
 import torch
-from typing import Tuple
+from typing import Dict, Tuple
+from pathlib import Path
+from logger import CustomLogger as Logger
 
 # User defined imports
 from config import ACT_THRESHOLD
+from utils import get_datetime
 
 
 def nr_parameters(model) -> int:
@@ -24,3 +27,55 @@ def update_acc(
     Helps track the number of correct and total prediction used to calculate accuracy.
     """
     return (predictions.eq(labels).sum(), total + torch.numel(labels))
+
+
+def create_model_path(best: bool = False) -> Path:
+    # Create model directory
+    model_dir = "saved_models/"
+    p = Path(model_dir)
+    if not p.exists():
+        p.mkdir(parents=True, exist_ok=True)
+
+    b = "best_" if best else ""
+    model_path = p / f"{b}{get_datetime()}.pt"
+    return model_path
+
+
+def save_model(
+    state: Dict,
+    save_best: bool,
+    checkpoint_path: Path,
+    best_model_path: Path = None,
+):
+    """
+    The state dictionary is saved to a checkpoint file and has the following format::
+
+    ```
+    state = {
+        'epoch': epoch,
+        'state_dict': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        ...
+    }
+    ```
+
+    If the model is the best so far, also save it to the best_model_path.
+    """
+    # Save a checkpoint state
+    torch.save(state, checkpoint_path)
+
+    # Save best model so far
+    if save_best:
+        torch.save(state, best_model_path)
+
+
+def load_model(model_path: Path, log: Logger) -> Dict:
+    """
+    Loads the model state.
+    """
+    if model_path.exists():
+        state = torch.load(model_path)
+        return state
+    else:
+        log.error(f"Failed to load model: {model_path}")
+        exit()
