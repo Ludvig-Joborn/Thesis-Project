@@ -35,6 +35,9 @@ def train(
     # Tracks training losses and accuracies across epochs
     tr_epoch_losses, tr_epoch_accs = [], []
 
+    # Tracks validation loss and accuracy across epochs
+    val_epoch_losses, val_epoch_accs = [], []
+
     # Used for early stopping
     min_validation_loss = np.inf
 
@@ -49,6 +52,9 @@ def train(
         # Track correct and total predictions to calculate epoch accuracy
         correct = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
         total = 0
+
+        # Set model state to training
+        model.train()
 
         ##### Model training #####
         for i, sample in enumerate(
@@ -101,9 +107,6 @@ def train(
         tr_epoch_losses.append(training_loss.item() / (i + 1))
         tr_epoch_accs.append(correct.sum().item() / total)
 
-        ##### Model validation #####
-        # Tracks validation loss and accuracy across epochs
-        val_epoch_losses, val_epoch_accs = [], []
         # Track validation loss
         validation_loss = 0
 
@@ -111,6 +114,10 @@ def train(
         correct = torch.zeros(-(len_val // -BATCH_SIZE)).to(device, non_blocking=True)
         total = 0
 
+        # Set model state to evaluation
+        model.eval()
+
+        ##### Model validation #####
         with torch.no_grad():
             for i, sample in enumerate(
                 tqdm(iterable=val_loader, desc="Validation Batch progress:")
