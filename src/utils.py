@@ -2,6 +2,7 @@ import torch
 import torchaudio.transforms as T
 import matplotlib.pyplot as plt
 import librosa
+from datetime import datetime
 from typing import Callable, List
 
 
@@ -59,6 +60,13 @@ def get_mel_spectrogram(
         mel_scale="htk",
     )
     return mel_spectrogram
+
+
+def get_datetime() -> str:
+    """
+    Returns the current date and time as a string.
+    """
+    return datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 
 def plot_tr_val_acc_loss(
