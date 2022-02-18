@@ -14,10 +14,11 @@ from datasets.datasets_utils import *
 from logger import CustomLogger as Logger
 from models.basic_nn import NeuralNetwork as NN
 from datasets.dataset_handler import DatasetWrapper
-from models.model_utils import nr_parameters, activation, update_acc
+from models.model_utils import *
 
 
 def train(
+    start_epoch: int,
     tr_loader: DataLoader,
     len_tr: int,
     val_loader: DataLoader,
@@ -28,6 +29,8 @@ def train(
     scheduler1,
     scheduler2,
     log: Logger,
+    model_path: Path,
+    best_model_path: Path,
 ) -> Tuple[List[float], float]:
     """
     Training loop. Uses validation data for early stopping.
@@ -41,7 +44,7 @@ def train(
     # Used for early stopping
     min_validation_loss = np.inf
 
-    for epoch in range(1, EPOCHS + 1):
+    for epoch in range(start_epoch, EPOCHS + 1):
         log.info(f"Epoch {epoch}")
 
         # Track loss while epoch is running
@@ -150,14 +153,26 @@ def train(
             val_epoch_losses.append(validation_loss.item() / (i + 1))
             val_epoch_accs.append(correct.sum().item() / total)
 
+            # Save model after each epoch
+            state = {
+                "epoch": epoch,
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler1": scheduler1.state_dict(),
+                "scheduler2": scheduler2.state_dict(),
+            }
+            save_model(state, False, model_path)
+
             # Early stopping:
             # Has validation loss decreased? If yes, keep training. If no, stop training (overfit).
             if min_validation_loss > validation_loss.item():
                 min_validation_loss = validation_loss.item()
+
+                # Save best model so far
+                save_model(state, True, model_path, best_model_path)
             else:
                 log.info(
-                    f"Model overfitting occurred at epoch {epoch}. Halting training.",
-                    display_console=False,
+                    f"Model overfitting occurred at epoch {epoch}. Halting training."
                 )
                 return (
                     tr_epoch_losses,
@@ -180,6 +195,9 @@ def test(te_loader: DataLoader, len_te: int, model, criterion, log: Logger) -> f
     # Track correct and total predictions to calculate test accuracy
     correct = torch.zeros(-(len_te // -BATCH_SIZE)).to(device, non_blocking=True)
     total = 0
+
+    # Set model state to evaluation
+    model.eval()
 
     with torch.no_grad():
         for i, sample in enumerate(
@@ -223,6 +241,10 @@ if __name__ == "__main__":
         log.error("Please use a GPU to train this model.")
         exit()
 
+    # Model Paths for saving model during training
+    model_path = create_model_path()
+    best_model_path = create_model_path(best=True)
+
     ### Load Datasets ###
 
     # Load datasets via DatasetWrapper
@@ -245,17 +267,30 @@ if __name__ == "__main__":
     ### Declare Model ###
 
     # Network
+    start_epoch = 1
     model = NN(sample_rate, SAMPLE_RATE).to(device, non_blocking=True)
 
     # Loss function
     criterion = nn.MSELoss()
 
-    # optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0001)
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    # optimizer = optim.Adam(model.parameters(), lr=LR_adam, weight_decay=WD)
+    optimizer = optim.SGD(model.parameters(), lr=LR_sgd, momentum=MOMENTUM)
 
     # Schedulers for updating learning rate
-    scheduler1 = ExponentialLR(optimizer, gamma=0.9)
-    scheduler2 = MultiStepLR(optimizer, milestones=[30, 80], gamma=0.1)
+    scheduler1 = ExponentialLR(optimizer, gamma=GAMMA_1)
+    scheduler2 = MultiStepLR(optimizer, milestones=MILESTONES, gamma=GAMMA_2)
+
+    # Load model from disk to continue training
+    if LOAD_MODEL:
+        state = load_model(LOAD_MODEL_PATH, log)
+
+        start_epoch = state["epoch"] + 1  # Start from next epoch
+        model.load_state_dict(state["state_dict"])
+        optimizer.load_state_dict(state["optimizer"])
+        scheduler1.load_state_dict(state["scheduler1"])
+        scheduler2.load_state_dict(state["scheduler2"])
+
+        log.info(f"Loaded model from {LOAD_MODEL_PATH}")
 
     ### Train Model ###
     log.info("Training", add_header=True)
@@ -263,7 +298,8 @@ if __name__ == "__main__":
     # Log number of parameters to train in network
     log.info(f"Number of parameters to train: {nr_parameters(model)}")
 
-    tr_epoch_losses, tr_epoch_accs, val_epoch_loss, val_epoch_accs = train(
+    tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs = train(
+        start_epoch,
         DS_train_loader,
         len_tr,
         DS_val_loader,
@@ -274,9 +310,15 @@ if __name__ == "__main__":
         scheduler1,
         scheduler2,
         log,
+        model_path,
+        best_model_path,
     )
 
     ### Test Model (temporary) ###
     log.info("Testing", add_header=True)
 
     te_loss, te_acc = test(DS_test_loader, len_te, model, criterion, log)
+
+    plot_tr_val_acc_loss(
+        tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs
+    )
