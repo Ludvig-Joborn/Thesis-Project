@@ -2,7 +2,7 @@ import torch
 import torchaudio.transforms as T
 import matplotlib.pyplot as plt
 import librosa
-from typing import Callable
+from typing import Callable, List
 
 
 def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
@@ -59,3 +59,43 @@ def get_mel_spectrogram(
         mel_scale="htk",
     )
     return mel_spectrogram
+
+
+def plot_tr_val_acc_loss(
+    tr_losses: List[float],
+    tr_accs: List[float],
+    val_losses: List[float],
+    val_accs: List[float],
+):
+    """
+    Plots the training and validation accuracy and loss.
+    """
+    plt.style.use("ggplot")
+
+    x = range(1, len(tr_losses) + 1)
+
+    # Parameters for plotting
+    c_tr = "m"
+    c_val = "c"
+    plot_params = {
+        "linestyle": "-",
+        "marker": "o",
+        "markersize": 4,
+    }
+
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(x, tr_accs, color=c_tr, **plot_params, label="Training Acc")
+    plt.plot(x, val_accs, color=c_val, **plot_params, label="Validation Acc")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.title("Training and Validation Accuracy")
+    plt.legend()
+    plt.subplot(1, 2, 2)
+    plt.plot(x, tr_losses, color=c_tr, **plot_params, label="Training Loss")
+    plt.plot(x, val_losses, color=c_val, **plot_params, label="Validation Loss")
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.title("Training and Validation Loss")
+    plt.legend()
+    plt.show()
