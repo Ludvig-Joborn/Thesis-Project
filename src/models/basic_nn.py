@@ -92,7 +92,8 @@ class NeuralNetwork(nn.Module):
         )
 
         self.lin = nn.Linear(in_features=64, out_features=1)
-        # self.lin = nn.Flatten()
+
+        self.sigm = nn.Sigmoid()
 
         # TODO: try with and without dropout
         # TODO: work with output and see if we can learn
@@ -170,4 +171,6 @@ class NeuralNetwork(nn.Module):
         lin = self.lin(gru_out)
         # print("shape lin:", lin.shape)
 
-        return torch.permute(input=lin, dims=(0, 2, 1))
+        output = self.sigm(lin)
+
+        return torch.permute(input=output, dims=(0, 2, 1))
