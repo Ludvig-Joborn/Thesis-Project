@@ -29,17 +29,19 @@ def train(
     scheduler1,
     scheduler2,
     log: Logger,
-    model_path: Path,
-    best_model_path: Path,
+    model_save: Dict,
 ) -> Tuple[List[float], float]:
     """
     Training loop. Uses validation data for early stopping.
     """
-    # Tracks training losses and accuracies across epochs
-    tr_epoch_losses, tr_epoch_accs = [], []
-
-    # Tracks validation loss and accuracy across epochs
-    val_epoch_losses, val_epoch_accs = [], []
+    # Load model paramters (if empty params, start training from scratch)
+    model_path = model_save["model_path"]
+    best_model_path = model_save["best_model_path"]
+    # Tracks losses and accuracies across epochs
+    tr_epoch_losses = model_save["tr_epoch_losses"]
+    tr_epoch_accs = model_save["tr_epoch_accs"]
+    val_epoch_losses = model_save["val_epoch_losses"]
+    val_epoch_accs = model_save["val_epoch_accs"]
 
     # Used for early stopping
     min_validation_loss = np.inf
@@ -154,12 +156,21 @@ def train(
             val_epoch_accs.append(correct.sum().item() / total)
 
             # Save model after each epoch
+            model_save = {
+                "model_path": model_path,
+                "best_model_path": best_model_path,
+                "tr_epoch_losses": tr_epoch_losses,
+                "tr_epoch_accs": tr_epoch_accs,
+                "val_epoch_losses": val_epoch_losses,
+                "val_epoch_accs": val_epoch_accs,
+            }
             state = {
                 "epoch": epoch,
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler1": scheduler1.state_dict(),
                 "scheduler2": scheduler2.state_dict(),
+                "model_save": model_save,
             }
             save_model(state, False, model_path)
 
@@ -241,10 +252,6 @@ if __name__ == "__main__":
         log.error("Please use a GPU to train this model.")
         exit()
 
-    # Model Paths for saving model during training
-    model_path = create_model_path()
-    best_model_path = create_model_path(best=True)
-
     ### Load Datasets ###
 
     # Load datasets via DatasetWrapper
@@ -290,7 +297,22 @@ if __name__ == "__main__":
         scheduler1.load_state_dict(state["scheduler1"])
         scheduler2.load_state_dict(state["scheduler2"])
 
+        # Dictionary with path, losses and accuracies
+        model_save = state["model_save"]
+
         log.info(f"Loaded model from {LOAD_MODEL_PATH}")
+    else:
+        # Model Paths for saving model during training
+        model_path = create_model_path()
+        best_model_path = create_model_path(best=True)
+        model_save = {
+            "model_path": model_path,
+            "best_model_path": best_model_path,
+            "tr_epoch_losses": [],
+            "tr_epoch_accs": [],
+            "val_epoch_losses": [],
+            "val_epoch_accs": [],
+        }
 
     ### Train Model ###
     log.info("Training", add_header=True)
@@ -310,8 +332,7 @@ if __name__ == "__main__":
         scheduler1,
         scheduler2,
         log,
-        model_path,
-        best_model_path,
+        model_save,
     )
 
     ### Test Model (temporary) ###

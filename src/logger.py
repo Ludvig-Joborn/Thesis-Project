@@ -8,7 +8,11 @@ from utils import get_datetime
 
 class CustomLogger:
     def __init__(
-        self, name: str, console_level=logging.DEBUG, file_level=logging.DEBUG
+        self,
+        name: str,
+        log_dir: Path = "logs/",
+        console_level=logging.DEBUG,
+        file_level=logging.DEBUG,
     ):
         self.logger = logging.getLogger(name)
 
@@ -20,11 +24,11 @@ class CustomLogger:
         logging.getLogger().setLevel(logging.DEBUG)
 
         # Create log folder
-        log_dir = "logs/"
-        p = Path(log_dir)
+        self.log_dir = log_dir
+        p = Path(self.log_dir)
         if not p.exists():
             p.mkdir(parents=True, exist_ok=True)
-        filename = f"{log_dir}{name.split('-')[0]}{get_datetime()}.log"
+        filename = f"{self.log_dir}{name.split('-')[0]}{get_datetime()}.log"
 
         # Create handlers
         self.console_handler = logging.StreamHandler()
