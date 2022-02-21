@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import librosa
 from datetime import datetime
 from typing import Callable, List
+from pathlib import Path
 
 
 def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
@@ -67,6 +68,18 @@ def get_datetime() -> str:
     Returns the current date and time as a string.
     """
     return datetime.now().strftime("%Y-%m-%d_%H-%M")
+
+
+def create_path(
+    dir: Path, filename: str = get_datetime(), ending: str = ".pt", best: bool = False
+) -> Path:
+    # Create directory
+    if not dir.exists():
+        dir.mkdir(parents=True, exist_ok=True)
+
+    b = "best_" if best else ""
+    path = dir / f"{b}{filename}{ending}"
+    return path
 
 
 def plot_tr_val_acc_loss(

@@ -10,11 +10,11 @@ from typing import Tuple
 # User defined imports
 from config import *
 from utils import *
+from models.model_utils import *
 from datasets.datasets_utils import *
 from logger import CustomLogger as Logger
 from models.basic_nn import NeuralNetwork as NN
 from datasets.dataset_handler import DatasetWrapper
-from models.model_utils import *
 
 
 def train(
@@ -283,7 +283,6 @@ if __name__ == "__main__":
     ### Declare Model ###
 
     # Network
-    start_epoch = 1
     model = NN(sample_rate, SAMPLE_RATE).to(device, non_blocking=True)
 
     # Loss function
@@ -312,9 +311,10 @@ if __name__ == "__main__":
         log.info("")
         log.info(f"Loaded model from {LOAD_MODEL_PATH}")
     else:
+        start_epoch = 1
         # Model Paths for saving model during training
         model_path = create_path(Path(SAVED_MODELS_DIR))
-        best_model_path = create_path(Path(SAVED_MODELS_DIR), ".pt", best=True)
+        best_model_path = create_path(Path(SAVED_MODELS_DIR), best=True)
         model_save = {
             "model_path": model_path,
             "best_model_path": best_model_path,

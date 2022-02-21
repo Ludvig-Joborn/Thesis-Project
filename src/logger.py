@@ -2,11 +2,6 @@ import logging
 from pathlib import Path
 import textwrap
 
-from torch import log_
-
-# User defined imports
-from utils import get_datetime
-
 
 class CustomLogger:
     def __init__(
