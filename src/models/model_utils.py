@@ -1,11 +1,9 @@
 import torch
 from typing import Dict, Tuple
 from pathlib import Path
-from logger import CustomLogger as Logger
 
 # User defined imports
 from config import ACT_THRESHOLD
-from utils import get_datetime
 
 
 def nr_parameters(model) -> int:
@@ -27,18 +25,6 @@ def update_acc(
     Helps track the number of correct and total prediction used to calculate accuracy.
     """
     return (predictions.eq(labels).sum(), total + torch.numel(labels))
-
-
-def create_path(
-    dir: Path, filename: str = get_datetime(), ending: str = ".pt", best: bool = False
-) -> Path:
-    # Create directory
-    if not dir.exists():
-        dir.mkdir(parents=True, exist_ok=True)
-
-    b = "best_" if best else ""
-    path = dir / f"{b}{filename}{ending}"
-    return path
 
 
 def save_model(
