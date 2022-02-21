@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 import textwrap
 
+from torch import log_
+
 # User defined imports
 from utils import get_datetime
 
@@ -10,11 +12,14 @@ class CustomLogger:
     def __init__(
         self,
         name: str,
-        log_dir: Path = "logs/",
+        log_path: Path,
         console_level=logging.DEBUG,
         file_level=logging.DEBUG,
     ):
-        self.logger = logging.getLogger(name)
+        self.name = name
+        self.log_path = log_path
+
+        self.logger = logging.getLogger(self.name)
 
         # Levels of logging
         self.console_level = console_level
@@ -23,16 +28,9 @@ class CustomLogger:
         # Set root logger to highest level
         logging.getLogger().setLevel(logging.DEBUG)
 
-        # Create log folder
-        self.log_dir = log_dir
-        p = Path(self.log_dir)
-        if not p.exists():
-            p.mkdir(parents=True, exist_ok=True)
-        filename = f"{self.log_dir}{name.split('-')[0]}{get_datetime()}.log"
-
         # Create handlers
         self.console_handler = logging.StreamHandler()
-        self.file_handler = logging.FileHandler(filename)
+        self.file_handler = logging.FileHandler(self.log_path)
         self.console_handler.setLevel(self.console_level)
         self.file_handler.setLevel(self.file_level)
 
@@ -45,6 +43,9 @@ class CustomLogger:
 
         # Header info
         self.max_len = 80
+
+    def path(self) -> Path:
+        return self.log_path
 
     def set_header_format(self):
         """
