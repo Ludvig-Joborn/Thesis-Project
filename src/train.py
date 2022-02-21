@@ -163,6 +163,7 @@ def train(
                 "tr_epoch_accs": tr_epoch_accs,
                 "val_epoch_losses": val_epoch_losses,
                 "val_epoch_accs": val_epoch_accs,
+                "log_path": log.path(),
             }
             state = {
                 "epoch": epoch,
@@ -243,7 +244,15 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
 
     ### MISC ###
-    log = Logger(LOGGER_TRAIN)
+    if LOAD_MODEL:
+        state = load_model(LOAD_MODEL_PATH)
+        log_path = state["model_save"]["log_path"]
+    else:
+        # Create new logfile
+        filename = get_datetime() + "_" + LOGGER_TRAIN.split("-")[0]
+        log_path = create_path(Path(LOG_DIR), filename, ".log")
+
+    log = Logger(LOGGER_TRAIN, log_path)
 
     # Use cuda if available
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -289,8 +298,6 @@ if __name__ == "__main__":
 
     # Load model from disk to continue training
     if LOAD_MODEL:
-        state = load_model(LOAD_MODEL_PATH, log)
-
         start_epoch = state["epoch"] + 1  # Start from next epoch
         model.load_state_dict(state["state_dict"])
         optimizer.load_state_dict(state["optimizer"])
@@ -300,11 +307,14 @@ if __name__ == "__main__":
         # Dictionary with path, losses and accuracies
         model_save = state["model_save"]
 
+        log.info("")
+        log.info("")
+        log.info("")
         log.info(f"Loaded model from {LOAD_MODEL_PATH}")
     else:
         # Model Paths for saving model during training
-        model_path = create_model_path()
-        best_model_path = create_model_path(best=True)
+        model_path = create_path(Path(SAVED_MODELS_DIR))
+        best_model_path = create_path(Path(SAVED_MODELS_DIR), ".pt", best=True)
         model_save = {
             "model_path": model_path,
             "best_model_path": best_model_path,
@@ -312,6 +322,7 @@ if __name__ == "__main__":
             "tr_epoch_accs": [],
             "val_epoch_losses": [],
             "val_epoch_accs": [],
+            "log_path": log.path(),
         }
 
     ### Train Model ###

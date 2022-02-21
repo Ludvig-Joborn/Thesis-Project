@@ -120,5 +120,7 @@ MILESTONES = [15, 40, 75]
 ############
 ### MISC ###
 ############
+SAVED_MODELS_DIR = "saved_models/"
+LOG_DIR = "logs/"
 LOGGER_TRAIN = "train-logger"
 LOGGER_TEST = "test-logger"

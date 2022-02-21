@@ -29,16 +29,16 @@ def update_acc(
     return (predictions.eq(labels).sum(), total + torch.numel(labels))
 
 
-def create_model_path(best: bool = False) -> Path:
-    # Create model directory
-    model_dir = "saved_models/"
-    p = Path(model_dir)
-    if not p.exists():
-        p.mkdir(parents=True, exist_ok=True)
+def create_path(
+    dir: Path, filename: str = get_datetime(), ending: str = ".pt", best: bool = False
+) -> Path:
+    # Create directory
+    if not dir.exists():
+        dir.mkdir(parents=True, exist_ok=True)
 
     b = "best_" if best else ""
-    model_path = p / f"{b}{get_datetime()}.pt"
-    return model_path
+    path = dir / f"{b}{filename}{ending}"
+    return path
 
 
 def save_model(
@@ -69,7 +69,7 @@ def save_model(
         torch.save(state, best_model_path)
 
 
-def load_model(model_path: Path, log: Logger) -> Dict:
+def load_model(model_path: Path) -> Dict:
     """
     Loads the model state.
     """
@@ -77,5 +77,4 @@ def load_model(model_path: Path, log: Logger) -> Dict:
         state = torch.load(model_path)
         return state
     else:
-        log.error(f"Failed to load model: {model_path}")
-        exit()
+        exit(f"Failed to load model: {model_path}")
