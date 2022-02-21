@@ -286,7 +286,7 @@ if __name__ == "__main__":
     model = NN(sample_rate, SAMPLE_RATE).to(device, non_blocking=True)
 
     # Loss function
-    criterion = nn.MSELoss()
+    criterion = nn.BCELoss()
 
     # optimizer = optim.Adam(model.parameters(), lr=LR_adam, weight_decay=WD)
     optimizer = optim.SGD(model.parameters(), lr=LR_sgd, momentum=MOMENTUM)
