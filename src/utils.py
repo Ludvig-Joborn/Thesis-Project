@@ -77,8 +77,8 @@ def create_path(
     if not dir.exists():
         dir.mkdir(parents=True, exist_ok=True)
 
-    b = "best_" if best else ""
-    path = dir / f"{b}{filename}{ending}"
+    b = "_best" if best else ""
+    path = dir / f"{filename}{b}{ending}"
     return path
 
 
