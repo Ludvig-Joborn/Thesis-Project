@@ -4,7 +4,6 @@ from torch import nn
 from tqdm import tqdm
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
-import numpy as np
 from typing import Tuple
 
 # User defined imports
@@ -42,9 +41,8 @@ def train(
     tr_epoch_accs = model_save["tr_epoch_accs"]
     val_epoch_losses = model_save["val_epoch_losses"]
     val_epoch_accs = model_save["val_epoch_accs"]
-
-    # Used for early stopping
-    min_validation_loss = np.inf
+    # Used for saving the best model
+    best_val_acc = model_save["best_val_acc"]
 
     for epoch in range(start_epoch, EPOCHS + 1):
         log.info(f"Epoch {epoch}")
@@ -55,8 +53,8 @@ def train(
         training_loss = 0
 
         # Track correct and total predictions to calculate epoch accuracy
-        correct = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
-        total = 0
+        correct_tr = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
+        total_tr = 0
 
         # Set model state to training
         model.train()
@@ -84,7 +82,7 @@ def train(
             loss = loss.detach()
             running_loss += loss
             training_loss += loss
-            correct[i], total = update_acc(activation(outputs), labels, total)
+            correct_tr[i], total_tr = update_acc(activation(outputs), labels, total_tr)
 
             # log every 100 batches
             if i % 100 == 99:
@@ -104,20 +102,22 @@ def train(
             display_console=False,
         )
         log.info(
-            f"Epoch {epoch}: Average training accuracy: {correct.sum().item() / total}",
+            f"Epoch {epoch}: Average training accuracy: {correct_tr.sum().item() / total_tr}",
             display_console=False,
         )
 
         # Save this epoch's training loss and accuracy
         tr_epoch_losses.append(training_loss.item() / (i + 1))
-        tr_epoch_accs.append(correct.sum().item() / total)
+        tr_epoch_accs.append(correct_tr.sum().item() / total_tr)
 
         # Track validation loss
         validation_loss = 0
 
         # Track correct and total predictions to calculate epoch accuracy
-        correct = torch.zeros(-(len_val // -BATCH_SIZE)).to(device, non_blocking=True)
-        total = 0
+        correct_val = torch.zeros(-(len_val // -BATCH_SIZE)).to(
+            device, non_blocking=True
+        )
+        total_val = 0
 
         # Set model state to evaluation
         model.eval()
@@ -139,7 +139,9 @@ def train(
 
                 # Track loss statistics
                 validation_loss += loss
-                correct[i], total = update_acc(activation(outputs), labels, total)
+                correct_val[i], total_val = update_acc(
+                    activation(outputs), labels, total_val
+                )
 
             # Log validation loss and accuracy
             log.info(
@@ -147,13 +149,14 @@ def train(
                 display_console=False,
             )
             log.info(
-                f"Epoch {epoch}: Average validation acc: {correct.sum().item() / total}",
+                f"Epoch {epoch}: Average validation acc: {correct_val.sum().item() / total_val}",
                 display_console=False,
             )
 
             # Save this epoch's training loss and accuracy
+            val_acc = correct_val.sum().item() / total_val
             val_epoch_losses.append(validation_loss.item() / (i + 1))
-            val_epoch_accs.append(correct.sum().item() / total)
+            val_epoch_accs.append(val_acc)
 
             # Save model after each epoch
             model_save = {
@@ -163,6 +166,7 @@ def train(
                 "tr_epoch_accs": tr_epoch_accs,
                 "val_epoch_losses": val_epoch_losses,
                 "val_epoch_accs": val_epoch_accs,
+                "best_val_acc": best_val_acc,
                 "log_path": log.path(),
             }
             state = {
@@ -175,23 +179,12 @@ def train(
             }
             save_model(state, False, model_path)
 
-            # Early stopping:
-            # Has validation loss decreased? If yes, keep training. If no, stop training (overfit).
-            if min_validation_loss > validation_loss.item():
-                min_validation_loss = validation_loss.item()
-
-                # Save best model so far
+            # Has validation accuracy increased?
+            # If yes, save the current model as 'best' model.
+            if best_val_acc < val_acc:
+                best_val_acc = val_acc
+                log.info(f"New best model at epoch {epoch}. Saving model.")
                 save_model(state, True, model_path, best_model_path)
-            else:
-                log.info(
-                    f"Model overfitting occurred at epoch {epoch}. Halting training."
-                )
-                return (
-                    tr_epoch_losses,
-                    tr_epoch_accs,
-                    val_epoch_losses,
-                    val_epoch_accs,
-                )
 
     return (tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs)
 
@@ -322,6 +315,7 @@ if __name__ == "__main__":
             "tr_epoch_accs": [],
             "val_epoch_losses": [],
             "val_epoch_accs": [],
+            "best_val_acc": 0,
             "log_path": log.path(),
         }
 
