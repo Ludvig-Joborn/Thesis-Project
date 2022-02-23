@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Callable, List
 from pathlib import Path
 
+from config import EPOCHS
+
 
 def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
     fig, axs = plt.subplots(1, 1)
@@ -120,3 +122,79 @@ def plot_tr_val_acc_loss(
     plt.title("Training and Validation Loss")
     plt.legend()
     plt.show()
+
+
+def plot_model_selection(model_saves):
+    """
+    Plots the training and validation accuracy and loss.
+    """
+
+    plt.style.use("ggplot")
+    x = range(1, EPOCHS + 1)
+
+    # Parameters for plotting
+    plot_params = {
+        "linestyle": "-",
+        "marker": "o",
+        "markersize": 4,
+    }
+
+    plt.figure(figsize=(12, 6))
+    plt.subplot(2, 2, 1)
+    for key, model_save in model_saves.items():
+        plt.plot(x, model_save["tr_epoch_accs"][0:EPOCHS], **plot_params, label=key)
+    plt.ylabel("Accuracy")
+    plt.title("Training Accuracy")
+    plt.legend()
+
+    plt.subplot(2, 2, 2)
+    for key, model_save in model_saves.items():
+        plt.plot(x, model_save["tr_epoch_losses"][0:EPOCHS], **plot_params, label=key)
+    plt.ylabel("Loss")
+    plt.title("Training Loss")
+    plt.legend()
+
+    plt.subplot(2, 2, 3)
+    for key, model_save in model_saves.items():
+        plt.plot(x, model_save["val_epoch_accs"][0:EPOCHS], **plot_params, label=key)
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.title("Validation Accuracy")
+    plt.legend()
+
+    plt.subplot(2, 2, 4)
+    for key, model_save in model_saves.items():
+        plt.plot(x, model_save["val_epoch_losses"][0:EPOCHS], **plot_params, label=key)
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.title("Validation Loss")
+    plt.legend()
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    dict = {
+        "b1": {
+            "model_path": None,
+            "best_model_path": None,
+            "tr_epoch_losses": [0.2],
+            "tr_epoch_accs": [0.8],
+            "val_epoch_losses": [0.3],
+            "val_epoch_accs": [0.7],
+            "best_val_acc": 0,
+            "log_path": None,
+        },
+        "b2": {
+            "model_path": None,
+            "best_model_path": None,
+            "tr_epoch_losses": [0.25],
+            "tr_epoch_accs": [0.65],
+            "val_epoch_losses": [0.4],
+            "val_epoch_accs": [0.5],
+            "best_val_acc": 0,
+            "log_path": None,
+        },
+    }
+    epochs = len(dict["b1"]["tr_epoch_losses"])
+    plot_model_selection(dict, epochs)
