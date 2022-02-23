@@ -8,11 +8,6 @@ from enum import Enum
 # User defined imports
 from config import PARAMS_TO_MELSPEC, SAMPLE_RATE
 
-"""
-Increase number of convolutions of baseline
-tried 2 conv in row without pool
-"""
-
 
 class PreProcess(nn.Module):
     def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
@@ -45,9 +40,9 @@ class ConvBlock(nn.Module):
         c_ks=(3, 3),
         c_stride=(1, 1),
         c_padding="same",
-        p_ks=(2, 2),
+        p_ks=(3, 1),
         p_stride=(1, 1),
-        p_pad=0,
+        p_pad=(1, 0),
         act=ACT.GLU,
     ):
         super(ConvBlock, self).__init__()
