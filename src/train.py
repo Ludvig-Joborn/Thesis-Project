@@ -237,7 +237,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
 
     ### MISC ###
-    if LOAD_MODEL:
+    if CONTINUE_TRAINING:
         state = load_model(LOAD_MODEL_PATH)
         log_path = state["model_save"]["log_path"]
     else:
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     scheduler2 = MultiStepLR(optimizer, milestones=MILESTONES, gamma=GAMMA_2)
 
     # Load model from disk to continue training
-    if LOAD_MODEL:
+    if CONTINUE_TRAINING:
         start_epoch = state["epoch"] + 1  # Start from next epoch
         model.load_state_dict(state["state_dict"])
         optimizer.load_state_dict(state["optimizer"])
