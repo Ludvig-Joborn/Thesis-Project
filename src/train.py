@@ -16,6 +16,84 @@ from models.basic_nn import NeuralNetwork as NN
 from datasets.dataset_handler import DatasetWrapper
 
 
+# Use cuda if available, exit otherwise.
+device = "cuda" if torch.cuda.is_available() else "cpu"
+if device == "cpu":
+    exit("Please use a GPU to train this model.")
+
+
+def train_batches(
+    tr_loader: DataLoader, model, criterion, optimizer
+) -> Tuple[List[float], List[float], List[float]]:
+    # Track loss for a whole epoch
+    training_loss = 0
+
+    # Track correct and total predictions to calculate epoch accuracy
+    correct_tr = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
+    total_tr = 0
+
+    ##### Model training #####
+    for i, sample in enumerate(
+        tqdm(iterable=tr_loader, desc="Training Batch progress:")
+    ):
+        waveform, labels = sample
+
+        # Send parameters to device
+        waveform = waveform.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
+
+        # reset the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + loss + backward + optimize
+        outputs = model.forward(waveform)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        # Track statistics
+        loss = loss.detach()
+        training_loss += loss
+        correct_tr[i], total_tr = update_acc(activation(outputs), labels, total_tr)
+
+    return training_loss, correct_tr, total_tr, i
+
+
+def te_val_batches(
+    data_loader: DataLoader,
+    model,
+    criterion,
+) -> Tuple[List[float], List[float], List[float], List[float]]:
+    # Track loss for a whole epoch
+    # Track validation loss
+    total_loss = 0
+
+    # Track correct and total predictions to calculate epoch accuracy
+    correct = torch.zeros(-(len_val // -BATCH_SIZE)).to(device, non_blocking=True)
+    total = 0
+
+    ##### Evaluate on validation dataset #####
+    with torch.no_grad():
+        for i, sample in enumerate(
+            tqdm(iterable=data_loader, desc="Validation Batch progress:")
+        ):
+            waveform, labels = sample
+
+            # Send parameters to device
+            waveform = waveform.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
+
+            # forward + loss
+            outputs = model.forward(waveform)
+            loss = criterion(outputs, labels)
+
+            # Track loss statistics
+            total_loss += loss
+            correct[i], total = update_acc(activation(outputs), labels, total)
+
+        return total_loss, correct, total, i
+
+
 def train(
     start_epoch: int,
     tr_loader: DataLoader,
@@ -47,50 +125,13 @@ def train(
     for epoch in range(start_epoch, EPOCHS + 1):
         log.info(f"Epoch {epoch}")
 
-        # Track loss while epoch is running
-        running_loss = 0
-        # Track loss for a whole epoch
-        training_loss = 0
-
-        # Track correct and total predictions to calculate epoch accuracy
-        correct_tr = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
-        total_tr = 0
-
         # Set model state to training
         model.train()
 
-        ##### Model training #####
-        for i, sample in enumerate(
-            tqdm(iterable=tr_loader, desc="Training Batch progress:")
-        ):
-            waveform, labels = sample
-
-            # Send parameters to device
-            waveform = waveform.to(device, non_blocking=True)
-            labels = labels.to(device, non_blocking=True)
-
-            # reset the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + loss + backward + optimize
-            outputs = model.forward(waveform)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            # Track statistics
-            loss = loss.detach()
-            running_loss += loss
-            training_loss += loss
-            correct_tr[i], total_tr = update_acc(activation(outputs), labels, total_tr)
-
-            # log every 100 batches
-            if i % 100 == 99:
-                log.info(
-                    f"[{epoch}, {i + 1:5d}] loss: {running_loss / 100:.3f}",
-                    display_console=False,
-                )
-                running_loss = 0.0
+        ##### Model batch training #####
+        training_loss, correct_tr, total_tr, total_tr_epochs = train_batches(
+            tr_loader, model, criterion, optimizer
+        )
 
         # Update learning_rate
         scheduler1.step()
@@ -98,7 +139,7 @@ def train(
 
         # Log training loss and accuracy
         log.info(
-            f"Epoch {epoch}: Average training loss: {training_loss.item()/(i+1)}",
+            f"Epoch {epoch}: Average training loss: {training_loss.item()/(total_tr_epochs+1)}",
             display_console=False,
         )
         log.info(
@@ -107,84 +148,59 @@ def train(
         )
 
         # Save this epoch's training loss and accuracy
-        tr_epoch_losses.append(training_loss.item() / (i + 1))
+        tr_epoch_losses.append(training_loss.item() / (total_tr_epochs + 1))
         tr_epoch_accs.append(correct_tr.sum().item() / total_tr)
-
-        # Track validation loss
-        validation_loss = 0
-
-        # Track correct and total predictions to calculate epoch accuracy
-        correct_val = torch.zeros(-(len_val // -BATCH_SIZE)).to(
-            device, non_blocking=True
-        )
-        total_val = 0
 
         # Set model state to evaluation
         model.eval()
 
         ##### Model validation #####
-        with torch.no_grad():
-            for i, sample in enumerate(
-                tqdm(iterable=val_loader, desc="Validation Batch progress:")
-            ):
-                waveform, labels = sample
+        validation_loss, correct_val, total_val, total_val_epochs = te_val_batches(
+            val_loader, model, criterion
+        )
 
-                # Send parameters to device
-                waveform = waveform.to(device, non_blocking=True)
-                labels = labels.to(device, non_blocking=True)
+        # Log validation loss and accuracy
+        log.info(
+            f"Epoch {epoch}: Average validation loss: {validation_loss.item()/(total_val_epochs+1)}",
+            display_console=False,
+        )
+        log.info(
+            f"Epoch {epoch}: Average validation acc: {correct_val.sum().item() / total_val}",
+            display_console=False,
+        )
 
-                # forward + loss
-                outputs = model.forward(waveform)
-                loss = criterion(outputs, labels)
+        # Save this epoch's training loss and accuracy
+        val_acc = correct_val.sum().item() / total_val
+        val_epoch_losses.append(validation_loss.item() / (total_val_epochs + 1))
+        val_epoch_accs.append(val_acc)
 
-                # Track loss statistics
-                validation_loss += loss
-                correct_val[i], total_val = update_acc(
-                    activation(outputs), labels, total_val
-                )
+        # Save model after each epoch
+        model_save = {
+            "model_path": model_path,
+            "best_model_path": best_model_path,
+            "tr_epoch_losses": tr_epoch_losses,
+            "tr_epoch_accs": tr_epoch_accs,
+            "val_epoch_losses": val_epoch_losses,
+            "val_epoch_accs": val_epoch_accs,
+            "best_val_acc": best_val_acc,
+            "log_path": log.path(),
+        }
+        state = {
+            "epoch": epoch,
+            "state_dict": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler1": scheduler1.state_dict(),
+            "scheduler2": scheduler2.state_dict(),
+            "model_save": model_save,
+        }
+        save_model(state, False, model_path)
 
-            # Log validation loss and accuracy
-            log.info(
-                f"Epoch {epoch}: Average validation loss: {validation_loss.item()/(i+1)}",
-                display_console=False,
-            )
-            log.info(
-                f"Epoch {epoch}: Average validation acc: {correct_val.sum().item() / total_val}",
-                display_console=False,
-            )
-
-            # Save this epoch's training loss and accuracy
-            val_acc = correct_val.sum().item() / total_val
-            val_epoch_losses.append(validation_loss.item() / (i + 1))
-            val_epoch_accs.append(val_acc)
-
-            # Save model after each epoch
-            model_save = {
-                "model_path": model_path,
-                "best_model_path": best_model_path,
-                "tr_epoch_losses": tr_epoch_losses,
-                "tr_epoch_accs": tr_epoch_accs,
-                "val_epoch_losses": val_epoch_losses,
-                "val_epoch_accs": val_epoch_accs,
-                "best_val_acc": best_val_acc,
-                "log_path": log.path(),
-            }
-            state = {
-                "epoch": epoch,
-                "state_dict": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "scheduler1": scheduler1.state_dict(),
-                "scheduler2": scheduler2.state_dict(),
-                "model_save": model_save,
-            }
-            save_model(state, False, model_path)
-
-            # Has validation accuracy increased?
-            # If yes, save the current model as 'best' model.
-            if best_val_acc < val_acc:
-                best_val_acc = val_acc
-                log.info(f"New best model at epoch {epoch}. Saving model.")
-                save_model(state, True, model_path, best_model_path)
+        # Has validation accuracy increased?
+        # If yes, save the current model as 'best' model.
+        if best_val_acc < val_acc:
+            best_val_acc = val_acc
+            log.info(f"New best model at epoch {epoch}. Saving model.")
+            save_model(state, True, model_path, best_model_path)
 
     return (tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs)
 
@@ -204,28 +220,16 @@ def test(te_loader: DataLoader, len_te: int, model, criterion, log: Logger) -> f
     # Set model state to evaluation
     model.eval()
 
-    with torch.no_grad():
-        for i, sample in enumerate(
-            tqdm(iterable=te_loader, desc="Test Batch progress:")
-        ):
-            waveform, labels = sample
-
-            # Send parameters to device
-            waveform = waveform.to(device, non_blocking=True)
-            labels = labels.to(device, non_blocking=True)
-
-            # forward + loss
-            outputs = model.forward(waveform)
-            loss = criterion(outputs, labels)
-
-            # Track loss statistics
-            test_loss += loss
-            correct[i], total = update_acc(activation(outputs), labels, total)
+    ##### Run test batches #####
+    test_loss, correct, total, total_te_batches = te_val_batches(te_loader, model, criterion)
 
     # Log test loss and accuracy
     test_loss = test_loss.item()
     test_acc = correct.sum().item() / total
-    log.info(f"Average testing loss: {test_loss/(i+1)}", display_console=False)
+    log.info(
+        f"Average testing loss: {test_loss/(total_te_batches+1)}",
+        display_console=False,
+    )
     log.info(f"Average test accuracy: {test_acc}", display_console=True)
 
     return test_loss, test_acc
@@ -246,13 +250,6 @@ if __name__ == "__main__":
         log_path = create_path(Path(LOG_DIR), filename, ".log")
 
     log = Logger(LOGGER_TRAIN, log_path)
-
-    # Use cuda if available
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    if device == "cpu":
-        log.error("Please use a GPU to train this model.")
-        exit()
 
     ### Load Datasets ###
 
