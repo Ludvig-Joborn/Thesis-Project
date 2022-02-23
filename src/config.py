@@ -83,13 +83,13 @@ PARAMS_TO_MELSPEC = {
 ### MODELS ###
 ##############
 EPOCHS = 20
-BATCH_SIZE = 8
+BATCH_SIZE = 32
 
 ACT_THRESHOLD = 0.5
 
 ### Save & Load Model ###
-LOAD_MODEL = False
-LOAD_MODEL_PATH = Path("saved_models/2022-02-22_10-14.pt")
+CONTINUE_TRAINING = False
+LOAD_MODEL_PATH = Path("E:/saved_models/2022-02-23_16-24.pt")
 
 
 ################
@@ -120,7 +120,7 @@ MILESTONES = [15, 40, 75]
 ############
 ### MISC ###
 ############
-SAVED_MODELS_DIR = "saved_models/"
+SAVED_MODELS_DIR = "E:/saved_models/"
 LOG_DIR = "logs/"
 LOGGER_TRAIN = "train-logger"
 LOGGER_TEST = "test-logger"
