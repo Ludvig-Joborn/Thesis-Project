@@ -25,16 +25,21 @@ class CustomLogger:
 
         # Create handlers
         self.console_handler = logging.StreamHandler()
-        self.file_handler = logging.FileHandler(self.log_path)
         self.console_handler.setLevel(self.console_level)
-        self.file_handler.setLevel(self.file_level)
+
+        if self.file_level != logging.NOTSET:
+            # Logging to file
+            self.file_handler = logging.FileHandler(self.log_path)
+            self.file_handler.setLevel(self.file_level)
 
         # Create formatters
         self.set_default_format()
 
         # Add handlers to the logger
         self.logger.addHandler(self.console_handler)
-        self.logger.addHandler(self.file_handler)
+
+        if self.file_level != logging.NOTSET:
+            self.logger.addHandler(self.file_handler)
 
         # Header info
         self.max_len = 80
@@ -49,7 +54,8 @@ class CustomLogger:
         console_format = logging.Formatter("%(message)s")
         file_format = logging.Formatter("%(asctime)s - %(message)s", datefmt="%H:%M:%S")
         self.console_handler.setFormatter(console_format)
-        self.file_handler.setFormatter(file_format)
+        if self.file_level != logging.NOTSET:
+            self.file_handler.setFormatter(file_format)
 
     def set_default_format(self):
         """
@@ -60,7 +66,8 @@ class CustomLogger:
             "%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
         )
         self.console_handler.setFormatter(console_format)
-        self.file_handler.setFormatter(file_format)
+        if self.file_level != logging.NOTSET:
+            self.file_handler.setFormatter(file_format)
 
     def add_header(self, function, msg: str):
         """
