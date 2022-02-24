@@ -52,7 +52,7 @@ PATH_TO_PUBLIC_TEST_DESED_WAVS = Path(
 ### MELSPECTROGRAM ###
 ######################
 
-SAMPLE_RATE = 44100
+SAMPLE_RATE = 16000
 N_FFT = 2048
 WIN_LENGTH = None
 N_MELS = 128
@@ -76,7 +76,7 @@ PARAMS_TO_MELSPEC = {
     "norm": 1,
     "trainable_mel": False,
     "trainable_STFT": False,
-    "verbose": True,
+    "verbose": False,
 }
 
 ##############
