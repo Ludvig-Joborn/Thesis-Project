@@ -16,6 +16,72 @@ Note: Works best with 'batch_size' = 64 (have not tried larger)
 """
 
 
+class ChannelAttention(nn.Module):
+    def __init__(self, chin, reduction=16):
+        super(ChannelAttention, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+        self.fc = nn.Sequential(
+            nn.Conv2d(
+                in_channels=chin,
+                out_channels=chin // reduction,
+                kernel_size=1,
+                bias=False,
+            ),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=chin // reduction,
+                out_channels=chin,
+                kernel_size=1,
+                bias=False,
+            ),
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = self.fc(self.avg_pool(x))
+        max_out = self.fc(self.max_pool(x))
+        out = avg_out + max_out
+        return self.sigmoid(out)
+
+
+class SpatialAttention(nn.Module):
+    def __init__(self, c_ks=7):
+        super(SpatialAttention, self).__init__()
+
+        self.conv1 = nn.Conv2d(
+            in_channels=2,
+            out_channels=1,
+            kernel_size=c_ks,
+            padding=c_ks // 2,
+            bias=False,
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        x = torch.cat([avg_out, max_out], dim=1)
+        x = self.conv1(x)
+        return self.sigmoid(x)
+
+
+class CBAM(nn.Module):
+    def __init__(self, chin, reduction=16, c_ks=7):
+        super(CBAM, self).__init__()
+
+        self.CA = ChannelAttention(chin, reduction)
+        self.SA = SpatialAttention(c_ks)
+
+    def forward(self, x: torch.Tensor):
+        residual = x
+        out = x * self.CA(x)
+        out = out * self.SA(out)
+        out += residual
+        return out
+
+
 class NeuralNetwork(nn.Module):
     def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
@@ -58,6 +124,8 @@ class NeuralNetwork(nn.Module):
                 padding="same",
             ),
             nn.GLU(dim=2),
+            nn.BatchNorm2d(chout),
+            nn.Dropout(p=0.1),
             nn.ConstantPad2d((0, 1, 1, 0), 0),
             nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 1)),
         )
@@ -73,6 +141,7 @@ class NeuralNetwork(nn.Module):
             ),
             nn.ReLU(),
             nn.BatchNorm2d(chout),
+            nn.Dropout(p=0.1),
             nn.Conv2d(
                 in_channels=chout,
                 out_channels=chout,
@@ -81,6 +150,9 @@ class NeuralNetwork(nn.Module):
                 padding="same",
             ),
             nn.ReLU(),
+            nn.BatchNorm2d(chout),
+            nn.Dropout(p=0.1),
+            CBAM(chout),
             nn.ConstantPad2d((0, 0, 1, 0), 0),
             nn.AvgPool2d(kernel_size=(2, 1), stride=(2, 1)),
         )

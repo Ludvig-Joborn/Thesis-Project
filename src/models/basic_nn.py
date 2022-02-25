@@ -25,20 +25,6 @@ class NeuralNetwork(nn.Module):
         self.flatten = nn.Flatten()
 
         # CNN layer
-        """"
-        self.cnn_layer1 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=1,
-                out_channels=16,
-                kernel_size=(2, 2),
-                stride=(1, 1),
-                padding=1,
-            ),
-            nn.AvgPool2d(kernel_size=(3, 3), stride=(1, 1), padding=0),
-            nn.GLU(dim=2),
-            nn.BatchNorm2d(16),
-        )
-        """
         self.conv1 = nn.Conv2d(
             in_channels=1,
             out_channels=16,
@@ -46,7 +32,8 @@ class NeuralNetwork(nn.Module):
             stride=(1, 1),
             padding=(1, 1),
         )
-        self.avg_pool1 = nn.AvgPool2d(kernel_size=(3, 3), stride=(1, 1), padding=1)
+        self.pad1 = nn.ConstantPad2d((0, 1, 1, 0), 0)
+        self.avg_pool1 = nn.AvgPool2d(kernel_size=(2, 2), stride=(1, 1))
         self.glu1 = nn.GLU(dim=2)
         self.bn1 = nn.BatchNorm2d(16)
 
@@ -57,7 +44,8 @@ class NeuralNetwork(nn.Module):
             stride=(1, 1),
             padding=(1, 1),
         )
-        self.avg_pool2 = nn.AvgPool2d(kernel_size=(3, 3), stride=(1, 1), padding=1)
+        self.pad2 = nn.ConstantPad2d((0, 1, 1, 0), 0)
+        self.avg_pool2 = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 1))
         self.glu2 = nn.GLU(dim=2)
         self.bn2 = nn.BatchNorm2d(32)
 
@@ -68,7 +56,8 @@ class NeuralNetwork(nn.Module):
             stride=(3, 1),
             padding=(2, 1),
         )
-        self.avg_pool3 = nn.AvgPool2d(kernel_size=(3, 1), stride=(2, 1), padding=(1, 0))
+        self.pad3 = nn.ConstantPad2d((0, 0, 1, 0), 0)
+        self.avg_pool3 = nn.AvgPool2d(kernel_size=(2, 1), stride=(2, 1))
         self.relu3 = nn.ReLU(inplace=True)
         self.bn3 = nn.BatchNorm2d(32)
 
@@ -79,7 +68,8 @@ class NeuralNetwork(nn.Module):
             stride=(3, 1),
             padding=(2, 1),
         )
-        self.avg_pool4 = nn.AvgPool2d(kernel_size=(3, 1), stride=(2, 1), padding=(1, 0))
+        self.pad4 = nn.ConstantPad2d((0, 0, 1, 0), 0)
+        self.avg_pool4 = nn.AvgPool2d(kernel_size=(2, 1), stride=(2, 1))
         self.relu4 = nn.ReLU(inplace=True)
         self.bn4 = nn.BatchNorm2d(32)
 
@@ -95,82 +85,49 @@ class NeuralNetwork(nn.Module):
 
         self.sigm = nn.Sigmoid()
 
-        # TODO: try with and without dropout
-        # TODO: work with output and see if we can learn
-
     def forward(self, waveform: torch.Tensor):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         waveform_ds = self.resampler(waveform)
         mel_spec = self.spec_layer(waveform_ds)
 
         foo = torch.unsqueeze(input=mel_spec, dim=1)
-        # print("shape foo:", foo.shape)
-
         conv1 = self.conv1(foo)
-        # print("shape conv:", conv1.shape)
-
         glu1 = self.glu1(conv1)
-        # print("shape glu:", glu1.shape)
-
-        avg_pool1 = self.avg_pool1(glu1)
-        # print("shape avg_pool:", avg_pool1.shape)
-
+        pad1 = self.pad1(glu1)
+        avg_pool1 = self.avg_pool1(pad1)
         bn1 = self.bn1(avg_pool1)
-        # print("shape bn:", bn1.shape)
 
         ############################
 
         conv2 = self.conv2(bn1)
-        # print("shape conv2:", conv2.shape)
-
         glu2 = self.glu2(conv2)
-        # print("shape glu2:", glu2.shape)
-
-        avg_pool2 = self.avg_pool2(glu2)
-        # print("shape avg_pool2:", avg_pool2.shape)
-
+        pad2 = self.pad2(glu2)
+        avg_pool2 = self.avg_pool2(pad2)
         bn2 = self.bn2(avg_pool2)
-        # print("shape bn2:", bn2.shape)
 
         ############################
 
         conv3 = self.conv3(bn2)
-        # print("shape conv3:", conv3.shape)
-
         relu3 = self.relu3(conv3)
-        # print("shape relu3:", relu3.shape)
-
-        avg_pool3 = self.avg_pool3(relu3)
-        # print("shape avg_pool3:", avg_pool3.shape)
-
+        pad3 = self.pad3(relu3)
+        avg_pool3 = self.avg_pool3(pad3)
         bn3 = self.bn3(avg_pool3)
-        # print("shape bn3:", bn3.shape)
 
         ############################
 
         conv4 = self.conv4(bn3)
-        # print("shape conv4:", conv4.shape)
-
         relu4 = self.relu4(conv4)
-        # print("shape relu4:", relu4.shape)
-
-        avg_pool4 = self.avg_pool4(relu4)
-        # print("shape avg_pool4:", avg_pool4.shape)
-
+        pad4 = self.pad4(relu4)
+        avg_pool4 = self.avg_pool4(pad4)
         bn4 = self.bn4(avg_pool4)
-        # print("shape bn4:", bn4.shape)
 
-        ########
+        ############################
 
         bn4_sq = torch.squeeze(input=bn4, dim=2)
         bn4_pe = torch.permute(input=bn4_sq, dims=(0, 2, 1))
 
         gru_out, h_n = self.gru(bn4_pe)
-        # print("shape gru:", gru_out.shape)
-
         lin = self.lin(gru_out)
-        # print("shape lin:", lin.shape)
-
         output = self.sigm(lin)
 
         return torch.permute(input=output, dims=(0, 2, 1))

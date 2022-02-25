@@ -1,4 +1,3 @@
-from turtle import forward
 import torch
 from torch import nn
 from nnAudio.features.mel import MelSpectrogram
@@ -27,6 +26,7 @@ class PreProcess(nn.Module):
         return torch.unsqueeze(input=mel_spec, dim=1)
 
 
+### Convblock with GLU or ReLU ###
 class ACT(Enum):
     RELU = 0
     GLU = 1
@@ -40,24 +40,25 @@ class ConvBlock(nn.Module):
         c_ks=(3, 3),
         c_stride=(1, 1),
         c_padding="same",
-        p_ks=(3, 1),
+        p_ks=(2, 2),
         p_stride=(1, 1),
-        p_pad=(1, 0),
+        p_pad=0,
         act=ACT.GLU,
+        pad_pooling=(0, 0, 0, 0),
     ):
         super(ConvBlock, self).__init__()
-        self.cnn_layer = nn.Sequential(
-            nn.Conv2d(
-                in_channels=inC,
-                out_channels=outC,
-                kernel_size=c_ks,
-                stride=c_stride,
-                padding=c_padding,
-            ),
-            nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad),
-            self.act_func(act),
-            nn.BatchNorm2d(outC),
+
+        self.conv = nn.Conv2d(
+            in_channels=inC,
+            out_channels=outC,
+            kernel_size=c_ks,
+            stride=c_stride,
+            padding=c_padding,
         )
+        self.pad = nn.ConstantPad2d(pad_pooling, 0)
+        self.pool = nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad)
+        self.act = self.act_func(act)
+        self.bn = nn.BatchNorm2d(outC)
 
     def act_func(self, act=ACT.GLU):
         if act == ACT.GLU:
@@ -67,8 +68,15 @@ class ConvBlock(nn.Module):
         else:
             return None
 
-    def forward(self, input: torch.Tensor):
-        return self.cnn_layer(input)
+    def __call__(self, input: torch.Tensor):
+        conv = self.conv(input)
+
+        pad = self.pad(conv)
+        pool = self.pool(pad)
+
+        act = self.act(pool)
+        bn = self.bn(act)
+        return bn
 
 
 """
@@ -90,10 +98,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 3),
+            p_ks=(2, 2),
             p_stride=(1, 1),
-            p_pad=1,
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 1, 1, 0),
         )
 
         # 8, 16, 64, 431
@@ -103,10 +112,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 1),
+            p_ks=(2, 2),
             p_stride=(1, 1),
-            p_pad=(1, 0),
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 1, 1, 0),
         )
 
         # 8, 32, 32, 431
@@ -116,10 +126,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 1),
+            p_ks=(2, 1),
             p_stride=(1, 1),
-            p_pad=(1, 0),
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 0, 1, 0),
         )
 
         # 8, 64, 16, 431
@@ -129,10 +140,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 1),
+            p_ks=(2, 1),
             p_stride=(1, 1),
-            p_pad=(1, 0),
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 0, 1, 0),
         )
 
         # 8, 128, 8, 431
@@ -142,10 +154,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 1),
+            p_ks=(2, 1),
             p_stride=(1, 1),
-            p_pad=(1, 0),
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 0, 1, 0),
         )
 
         # 8, 128, 4, 431
@@ -155,10 +168,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 1),
+            p_ks=(2, 1),
             p_stride=(1, 1),
-            p_pad=(1, 0),
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 0, 1, 0),
         )
 
         # 8, 128, 2, 431
@@ -168,10 +182,11 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
-            p_ks=(3, 1),
+            p_ks=(2, 1),
             p_stride=(1, 1),
-            p_pad=(1, 0),
+            p_pad=0,
             act=ACT.GLU,
+            pad_pooling=(0, 0, 1, 0),
         )
 
         # 8, 128, 1, 431
@@ -190,13 +205,13 @@ class NeuralNetwork(nn.Module):
     def forward(self, waveform: torch.Tensor):
         mel_spec = self.pre_process.forward(waveform)
 
-        conv1 = self.conv1.forward(mel_spec)
-        conv2 = self.conv2.forward(conv1)
-        conv3 = self.conv3.forward(conv2)
-        conv4 = self.conv4.forward(conv3)
-        conv5 = self.conv5.forward(conv4)
-        conv6 = self.conv6.forward(conv5)
-        conv7 = self.conv7.forward(conv6)
+        conv1 = self.conv1(mel_spec)
+        conv2 = self.conv2(conv1)
+        conv3 = self.conv3(conv2)
+        conv4 = self.conv4(conv3)
+        conv5 = self.conv5(conv4)
+        conv6 = self.conv6(conv5)
+        conv7 = self.conv7(conv6)
 
         last_sq = torch.squeeze(input=conv7, dim=2)
         last_pe = torch.permute(input=last_sq, dims=(0, 2, 1))

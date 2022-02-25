@@ -113,6 +113,7 @@ class R_Conv(nn.Module):
             ),
             nn.ReLU(),
             nn.BatchNorm2d(outC),
+            nn.Dropout(p=0.1),
             nn.Conv2d(
                 in_channels=outC,
                 out_channels=outC,
@@ -122,6 +123,7 @@ class R_Conv(nn.Module):
             ),
             nn.ReLU(),
             nn.BatchNorm2d(outC),
+            nn.Dropout(p=0.1),
         )
         self.res_conv = nn.Conv2d(
             in_channels=inC,
@@ -193,6 +195,7 @@ class ConvBlock(nn.Module):
             stride=c_stride,
             padding=c_padding,
         )
+        self.drop = nn.Dropout(p=0.1),
         self.pad = nn.ConstantPad2d((0, 1, 1, 0), 0)
         self.pool = nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad)
         self.act = self.act_func(act)
@@ -208,12 +211,13 @@ class ConvBlock(nn.Module):
 
     def forward(self, input: torch.Tensor):
         conv = self.conv(input)
+        drop = self.drop(conv)
 
         if self.pad_pooling:
-            pad = self.pad(conv)
+            pad = self.pad(drop)
             pool = self.pool(pad)
         else:
-            pool = self.pool(conv)
+            pool = self.pool(drop)
 
         act = self.act(pool)
         bn = self.bn(act)
