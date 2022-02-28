@@ -5,7 +5,9 @@ from torch import nn
 from config import SAMPLE_RATE
 from models.preprocess import PreProcess
 from models.r_conv import R_Conv_cbam_avg_pool
-from models.conv_block import ConvBlock, ACT
+from models.conv_block import ConvBlock
+from models.model_utils import ACT, POOL
+
 
 CNN_DROPOUT = 0.2
 
@@ -29,6 +31,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 2),
             p_stride=(1, 1),
             p_pad=0,
@@ -44,6 +47,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 2),
             p_stride=(1, 1),
             p_pad=0,
@@ -56,55 +60,80 @@ class NeuralNetwork(nn.Module):
         self.r_conv_cbam3 = R_Conv_cbam_avg_pool(
             inC=32,
             outC=64,
+            c_ks=(3, 3),
+            c_stride=(1, 1),
+            c_padding="same",
             p_ks=(2, 1),
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
             dropout=CNN_DROPOUT,
+            act=ACT.RELU,
+            pool=POOL.AVG,
         )
 
         # 8/32, 64, 16, 431/157
         self.r_conv_cbam4 = R_Conv_cbam_avg_pool(
             inC=64,
             outC=128,
+            c_ks=(3, 3),
+            c_stride=(1, 1),
+            c_padding="same",
             p_ks=(2, 1),
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
             dropout=CNN_DROPOUT,
+            act=ACT.RELU,
+            pool=POOL.AVG,
         )
 
         # 8/32, 128, 8, 431/157
         self.r_conv_cbam5 = R_Conv_cbam_avg_pool(
             inC=128,
             outC=128,
+            c_ks=(3, 3),
+            c_stride=(1, 1),
+            c_padding="same",
             p_ks=(2, 1),
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
             dropout=CNN_DROPOUT,
+            act=ACT.RELU,
+            pool=POOL.AVG,
         )
 
         # 8/32, 128, 4, 431/157
         self.r_conv_cbam6 = R_Conv_cbam_avg_pool(
             inC=128,
             outC=128,
+            c_ks=(3, 3),
+            c_stride=(1, 1),
+            c_padding="same",
             p_ks=(2, 1),
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
             dropout=CNN_DROPOUT,
+            act=ACT.RELU,
+            pool=POOL.AVG,
         )
 
         # 8/32, 128, 2, 431/157
         self.r_conv_cbam7 = R_Conv_cbam_avg_pool(
             inC=128,
             outC=128,
+            c_ks=(3, 3),
+            c_stride=(1, 1),
+            c_padding="same",
             p_ks=(2, 1),
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
             dropout=CNN_DROPOUT,
+            act=ACT.RELU,
+            pool=POOL.AVG,
         )
 
         # 8/32, 128, 1, 431/157

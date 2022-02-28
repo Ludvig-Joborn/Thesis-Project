@@ -1,6 +1,7 @@
 import torch
 from typing import Dict, Tuple
 from pathlib import Path
+from enum import Enum
 
 # User defined imports
 from config import ACT_THRESHOLD
@@ -64,3 +65,15 @@ def load_model(model_path: Path) -> Dict:
         return state
     else:
         exit(f"Failed to load model: {model_path}")
+
+
+### Convblock with GLU or ReLU ###
+class ACT(Enum):
+    RELU = 0
+    GLU = 1
+
+
+class POOL(Enum):
+    AVG = 0
+    MAX = 1
+    LP = 2

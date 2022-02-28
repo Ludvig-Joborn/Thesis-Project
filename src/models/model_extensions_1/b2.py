@@ -4,8 +4,8 @@ from torch import nn
 # User defined imports
 from config import SAMPLE_RATE
 from models.preprocess import PreProcess
-from models.r_conv import R_Conv_cbam_avg_pool
-from models.conv_block import ConvBlock, ACT
+from models.conv_block import ConvBlock
+from models.model_utils import ACT, POOL
 
 
 """
@@ -27,6 +27,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 2),
             p_stride=(1, 1),
             p_pad=0,
@@ -41,6 +42,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 2),
             p_stride=(1, 1),
             p_pad=0,
@@ -55,6 +57,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 1),
             p_stride=(1, 1),
             p_pad=0,
@@ -69,6 +72,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 1),
             p_stride=(1, 1),
             p_pad=0,
@@ -83,6 +87,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 1),
             p_stride=(1, 1),
             p_pad=0,
@@ -97,6 +102,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 1),
             p_stride=(1, 1),
             p_pad=0,
@@ -111,6 +117,7 @@ class NeuralNetwork(nn.Module):
             c_ks=(3, 3),
             c_stride=(1, 1),
             c_padding="same",
+            pool=POOL.AVG,
             p_ks=(2, 1),
             p_stride=(1, 1),
             p_pad=0,
