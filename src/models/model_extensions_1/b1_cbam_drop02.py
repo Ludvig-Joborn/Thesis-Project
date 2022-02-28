@@ -7,6 +7,9 @@ from models.preprocess import PreProcess
 from models.cbam import CBAM
 
 
+CNN_DROPOUT = 0.2
+
+
 """
 CHANGES: 
 Inspiration from: 
@@ -54,7 +57,7 @@ class NeuralNetwork(nn.Module):
             ),
             nn.GLU(dim=2),
             nn.BatchNorm2d(chout),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=CNN_DROPOUT),
             nn.ConstantPad2d((0, 1, 1, 0), 0),
             nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 1)),
         )
@@ -70,7 +73,7 @@ class NeuralNetwork(nn.Module):
             ),
             nn.ReLU(),
             nn.BatchNorm2d(chout),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=CNN_DROPOUT),
             nn.Conv2d(
                 in_channels=chout,
                 out_channels=chout,
@@ -80,7 +83,7 @@ class NeuralNetwork(nn.Module):
             ),
             nn.ReLU(),
             nn.BatchNorm2d(chout),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=CNN_DROPOUT),
             CBAM(chout),
             nn.ConstantPad2d((0, 0, 1, 0), 0),
             nn.AvgPool2d(kernel_size=(2, 1), stride=(2, 1)),

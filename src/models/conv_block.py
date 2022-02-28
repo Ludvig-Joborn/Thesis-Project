@@ -22,6 +22,7 @@ class ConvBlock(nn.Module):
         p_pad=0,
         act=ACT.GLU,
         pad_pooling=(0, 1, 1, 0),
+        dropout=0,
     ):
         super(ConvBlock, self).__init__()
 
@@ -32,7 +33,7 @@ class ConvBlock(nn.Module):
             stride=c_stride,
             padding=c_padding,
         )
-        self.drop = nn.Dropout(p=0.1)
+        self.drop = nn.Dropout(p=dropout)
         self.pad = nn.ConstantPad2d(pad_pooling, 0)
         self.pool = nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad)
         self.act = self.act_func(act)
