@@ -1,28 +1,16 @@
 import torch
 from torch import nn
-from nnAudio.features.mel import MelSpectrogram
-import julius
 
 # User defined imports
-from config import PARAMS_TO_MELSPEC, SAMPLE_RATE
+from config import SAMPLE_RATE
+from models.preprocess import PreProcess
 
 
 class NeuralNetwork(nn.Module):
     def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
 
-        self.epsilon = 1e-10
-
-        # layer that downsamples the waveform to lower sample rate
-        self.resampler = julius.resample.ResampleFrac(
-            input_sample_rate, output_sample_rate
-        )
-
-        # layer that converts waveforms to log mel spectrograms
-        self.spec_layer = MelSpectrogram(**PARAMS_TO_MELSPEC)
-
-        # Flattening layer
-        self.flatten = nn.Flatten()
+        self.pre_process = PreProcess(input_sample_rate, output_sample_rate)
 
         # CNN layer
         self.conv1 = nn.Conv2d(
@@ -86,12 +74,9 @@ class NeuralNetwork(nn.Module):
         self.sigm = nn.Sigmoid()
 
     def forward(self, waveform: torch.Tensor):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        waveform_ds = self.resampler(waveform)
-        mel_spec = self.spec_layer(waveform_ds)
+        mel_spec = self.pre_process(waveform)
 
-        foo = torch.unsqueeze(input=mel_spec, dim=1)
-        conv1 = self.conv1(foo)
+        conv1 = self.conv1(mel_spec)
         glu1 = self.glu1(conv1)
         pad1 = self.pad1(glu1)
         avg_pool1 = self.avg_pool1(pad1)

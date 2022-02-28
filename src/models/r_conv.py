@@ -60,7 +60,7 @@ class R_Conv_cbam_avg_pool(nn.Module):
         super(R_Conv_cbam_avg_pool, self).__init__()
         self.r_conv = R_Conv(inC=inC, outC=outC, dropout=dropout)
         self.cbam = CBAM(inC=outC)
-        self.pad = nn.ConstantPad1d(pad_pooling, 0)
+        self.pad = nn.ConstantPad2d(pad_pooling, 0)
         self.pool = nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_padding)
 
     def __call__(self, input: torch.Tensor):
