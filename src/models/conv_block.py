@@ -41,7 +41,7 @@ class ConvBlock(nn.Module):
             return nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad)
         elif pool == POOL.MAX:
             return nn.MaxPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad)
-        elif pool == POOL.MAX:
+        elif pool == POOL.LP:
             return nn.LPPool2d(norm_type=4, kernel_size=p_ks, stride=p_stride)
 
     def act_func(self, act=ACT.GLU):
