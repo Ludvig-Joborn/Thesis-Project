@@ -1,82 +1,11 @@
 import torch
 from torch import nn
-from nnAudio.features.mel import MelSpectrogram
-import julius
-from enum import Enum
 
 # User defined imports
-from config import PARAMS_TO_MELSPEC, SAMPLE_RATE
-
-
-class PreProcess(nn.Module):
-    def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
-        super(PreProcess, self).__init__()
-
-        # layer that downsamples the waveform to lower sample rate
-        self.resampler = julius.resample.ResampleFrac(
-            input_sample_rate, output_sample_rate
-        )
-
-        # layer that converts waveforms to log mel spectrograms
-        self.spec_layer = MelSpectrogram(**PARAMS_TO_MELSPEC)
-
-    def forward(self, waveform):
-        waveform_ds = self.resampler(waveform)
-        mel_spec = self.spec_layer(waveform_ds)
-        return torch.unsqueeze(input=mel_spec, dim=1)
-
-
-### Convblock with GLU or ReLU ###
-class ACT(Enum):
-    RELU = 0
-    GLU = 1
-
-
-class ConvBlock(nn.Module):
-    def __init__(
-        self,
-        inC,
-        outC,
-        c_ks=(3, 3),
-        c_stride=(1, 1),
-        c_padding="same",
-        p_ks=(2, 2),
-        p_stride=(1, 1),
-        p_pad=0,
-        act=ACT.GLU,
-        pad_pooling=(0, 0, 0, 0),
-    ):
-        super(ConvBlock, self).__init__()
-
-        self.conv = nn.Conv2d(
-            in_channels=inC,
-            out_channels=outC,
-            kernel_size=c_ks,
-            stride=c_stride,
-            padding=c_padding,
-        )
-        self.pad = nn.ConstantPad2d(pad_pooling, 0)
-        self.pool = nn.AvgPool2d(kernel_size=p_ks, stride=p_stride, padding=p_pad)
-        self.act = self.act_func(act)
-        self.bn = nn.BatchNorm2d(outC)
-
-    def act_func(self, act=ACT.GLU):
-        if act == ACT.GLU:
-            return nn.GLU(dim=2)
-        elif act == ACT.RELU:
-            return nn.ReLU(inplace=True)
-        else:
-            return None
-
-    def __call__(self, input: torch.Tensor):
-        conv = self.conv(input)
-
-        pad = self.pad(conv)
-        pool = self.pool(pad)
-
-        act = self.act(pool)
-        bn = self.bn(act)
-        return bn
+from config import SAMPLE_RATE
+from models.preprocess import PreProcess
+from models.r_conv import R_Conv_cbam_avg_pool
+from models.conv_block import ConvBlock, ACT
 
 
 """
@@ -203,7 +132,7 @@ class NeuralNetwork(nn.Module):
         self.sigm = nn.Sigmoid()
 
     def forward(self, waveform: torch.Tensor):
-        mel_spec = self.pre_process.forward(waveform)
+        mel_spec = self.pre_process(waveform)
 
         conv1 = self.conv1(mel_spec)
         conv2 = self.conv2(conv1)

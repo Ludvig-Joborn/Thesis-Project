@@ -1,10 +1,10 @@
 import torch
 from torch import nn
-from nnAudio.features.mel import MelSpectrogram
-import julius
 
 # User defined imports
-from config import PARAMS_TO_MELSPEC, SAMPLE_RATE
+from config import SAMPLE_RATE
+from models.preprocess import PreProcess
+
 
 """
 CHANGES: 
@@ -20,13 +20,7 @@ class NeuralNetwork(nn.Module):
     def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
 
-        # layer that downsamples the waveform to lower sample rate
-        self.resampler = julius.resample.ResampleFrac(
-            input_sample_rate, output_sample_rate
-        )
-
-        # layer that converts waveforms to log mel spectrograms
-        self.spec_layer = MelSpectrogram(**PARAMS_TO_MELSPEC)
+        self.pre_process = PreProcess(input_sample_rate, output_sample_rate)
 
         # CNN layers
         self.stem_1_32 = self.stem_block(1, 32, 7)
@@ -86,15 +80,12 @@ class NeuralNetwork(nn.Module):
         )
 
     def forward(self, waveform: torch.Tensor):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        waveform_ds = self.resampler(waveform)
-        mel_spec = self.spec_layer(waveform_ds)
-        spec = torch.unsqueeze(input=mel_spec, dim=1)
+        mel_spec = self.pre_process(waveform)
 
         ############################
         # Stem blocks
 
-        stem1 = self.stem_1_32(spec)
+        stem1 = self.stem_1_32(mel_spec)
         stem2 = self.stem_32_64(stem1)
 
         ############################
@@ -114,4 +105,5 @@ class NeuralNetwork(nn.Module):
         gru_out, h_n = self.gru(rec_2)
         lin = self.lin(gru_out)
         output = self.sigm(lin)
+
         return torch.permute(input=output, dims=(0, 2, 1))
