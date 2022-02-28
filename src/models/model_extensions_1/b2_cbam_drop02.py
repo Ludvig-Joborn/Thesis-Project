@@ -7,6 +7,7 @@ from models.preprocess import PreProcess
 from models.r_conv import R_Conv_cbam_avg_pool
 from models.conv_block import ConvBlock, ACT
 
+CNN_DROPOUT = 0.2
 
 """
 dcase 2021 - place 10 - With CBAM and residual conv. 
@@ -33,6 +34,7 @@ class NeuralNetwork(nn.Module):
             p_pad=0,
             act=ACT.GLU,
             pad_pooling=(0, 1, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 16, 64, 431/157
@@ -47,6 +49,7 @@ class NeuralNetwork(nn.Module):
             p_pad=0,
             act=ACT.GLU,
             pad_pooling=(0, 1, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 32, 32, 431/157
@@ -57,6 +60,7 @@ class NeuralNetwork(nn.Module):
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 64, 16, 431/157
@@ -67,6 +71,7 @@ class NeuralNetwork(nn.Module):
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 128, 8, 431/157
@@ -77,6 +82,7 @@ class NeuralNetwork(nn.Module):
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 128, 4, 431/157
@@ -87,6 +93,7 @@ class NeuralNetwork(nn.Module):
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 128, 2, 431/157
@@ -97,6 +104,7 @@ class NeuralNetwork(nn.Module):
             p_stride=(2, 1),
             p_padding=0,
             pad_pooling=(0, 0, 1, 0),
+            dropout=CNN_DROPOUT,
         )
 
         # 8/32, 128, 1, 431/157
