@@ -4,6 +4,7 @@ from torch import nn
 # User defined imports
 from models.model_utils import ACT, POOL
 from models.cbam import CBAM
+from models.model_utils import LS_ReLU, SWISH
 
 
 class R_Conv(nn.Module):
@@ -53,6 +54,14 @@ class R_Conv(nn.Module):
             return nn.GLU(dim=2)
         elif act == ACT.RELU:
             return nn.ReLU()
+        elif act == ACT.LS_RELU:
+            return LS_ReLU()
+        elif act == ACT.SWISH:
+            return SWISH()
+        elif act == ACT.LS_RELU_TR:
+            return LS_ReLU(trainable=True)
+        elif act == ACT.SWISH_TR:
+            return SWISH(trainable=True)
 
     def __call__(self, input: torch.Tensor):
         layer1 = self.conv_x2(input)
