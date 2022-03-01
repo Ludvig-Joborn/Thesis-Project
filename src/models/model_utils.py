@@ -1,4 +1,5 @@
 import torch
+from torch import nn, threshold
 from typing import Dict, Tuple
 from pathlib import Path
 from enum import Enum
@@ -71,9 +72,87 @@ def load_model(model_path: Path) -> Dict:
 class ACT(Enum):
     RELU = 0
     GLU = 1
+    LS_RELU = 2
+    SWISH = 3
+
+    # With Trainable Parameters
+    LS_RELU_TR = 4
+    SWISH_TR = 5
 
 
 class POOL(Enum):
     AVG = 0
     MAX = 1
     LP = 2
+
+
+"""
+LS ReLU Inpired by: 
+https://www.mdpi.com/2076-3417/10/5/1897
+"""
+
+
+class LS_ReLU(nn.Module):
+    def __init__(self, trainable=False):
+        super(LS_ReLU, self).__init__()
+
+        self.upper_threshold = 10
+        self.alpha = 2.0
+
+        if trainable:
+            self.alpha = nn.Parameter(torch.tensor(1.0))
+            self.alpha.requires_grad = True
+
+    def get_alpha(self):
+        return self.alpha
+
+    def forward(self, x):
+        return self._ls_relu(x)
+
+    def _ls_relu(self, x):
+        inds_x0 = x <= 0
+        inds_x0_thr = torch.mul((self.upper_threshold >= x), (x > 0))
+        inds_thr = x > self.upper_threshold
+
+        x[inds_x0] = torch.div(x[inds_x0], torch.add(torch.abs(x[inds_x0]), 1))
+        x[inds_x0_thr] = torch.max(x[inds_x0_thr])
+
+        log_ = torch.log(torch.add(torch.mul(x[inds_thr], self.alpha), 1))
+        x[inds_thr] = torch.add(log_, torch.abs(torch.sub(log_, self.upper_threshold)))
+
+        return x
+
+        if x <= 0:
+            d = torch.add(torch.abs(x), 1)
+            return torch.div(x, d)
+        elif self.upper_threshold >= x > 0:
+            return torch.max(x)
+        elif x > self.upper_threshold:
+            inside = torch.add(torch.mul(x, self.alpha), 1)
+            l = torch.log(inside)
+            a = torch.abs(torch.sub(l, self.upper_threshold))
+            return torch.add(l, a)
+
+
+"""
+Swish inspired by:
+https://openreview.net/pdf?id=SkBYYyZRZ
+"""
+
+
+class SWISH(nn.Module):
+    def __init__(self, trainable=False):
+        super(SWISH, self).__init__()
+
+        self.beta = 1.0
+        self.sigmoid = nn.Sigmoid()
+        if trainable:
+            self.beta = nn.Parameter(torch.tensor(1.0))
+            self.beta.requires_grad = True
+
+    def get_beta(self):
+        return self.beta
+
+    def forward(self, x):
+        # return x * self.sigmoid(x * self.beta)
+        return torch.mul(x, self.sigmoid(torch.mul(x, self.beta)))
