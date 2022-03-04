@@ -47,6 +47,15 @@ PATH_TO_PUBLIC_TEST_DESED_WAVS = Path(
     "E:/Datasets/desed_zenodo/DESEDpublic_eval/dataset/audio/eval/public"
 )
 
+# Dataset - Desed Real
+TEST_DESED_NAME = "DESED Real"
+NUM_WORKERS_DESED_REAL = 0
+PATH_TO_DESED_REAL_TSV = Path(
+    "E:/Datasets/DESED_REAL_DOWNLOAD/DESED/real/metadata/validation/validation.tsv"
+)
+PATH_TO_DESED_REAL_WAVS = Path(
+    "E:/Datasets/DESED_REAL_DOWNLOAD/DESED/real/audio/validation"
+)
 
 ######################
 ### MELSPECTROGRAM ###
