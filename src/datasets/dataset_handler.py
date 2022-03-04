@@ -93,6 +93,18 @@ class DatasetManager:
         )
         return DS_loader
 
+    def load_DESED_Real_strong(self, name: str):
+        DS_loader = self._dataset_helper(
+            DESED_Strong,
+            name,
+            PATH_TO_DESED_REAL_TSV,
+            PATH_TO_DESED_REAL_WAVS,
+            DESED_CLIP_LEN_SECONDS,
+            NUM_WORKERS_DESED_REAL,
+            PIN_MEMORY,
+        )
+        return DS_loader
+
     ### User help-functions ###
 
     def display_loaded_datasets(self) -> str:
@@ -145,6 +157,8 @@ class DatasetWrapper:
         self.DM.load_DESED_strong_synth_train(self.name_train)
         self.DM.load_DESED_strong_synth_val(self.name_val)
         self.DM.load_DESED_strong_public_test(self.name_test)
+        #
+        self.DM.load_DESED_Real_strong(TEST_DESED_NAME)
 
         # Display loaded datasets
         # print(self.DM.display_loaded_datasets())
