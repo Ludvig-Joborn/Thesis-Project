@@ -158,7 +158,7 @@ class DatasetWrapper:
         self.DM.load_DESED_strong_synth_val(self.name_val)
         self.DM.load_DESED_strong_public_test(self.name_test)
         #
-        self.DM.load_DESED_Real_strong(TEST_DESED_NAME)
+        self.DM.load_DESED_Real_strong(DESED_REAL_NAME)
 
         # Display loaded datasets
         # print(self.DM.display_loaded_datasets())
