@@ -48,7 +48,7 @@ PATH_TO_PUBLIC_TEST_DESED_WAVS = Path(
 )
 
 # Dataset - Desed Real
-TEST_DESED_NAME = "DESED Real"
+DESED_REAL_NAME = "DESED Real"
 NUM_WORKERS_DESED_REAL = 0
 PATH_TO_DESED_REAL_TSV = Path(
     "E:/Datasets/DESED_REAL_DOWNLOAD/DESED/real/metadata/validation/validation.tsv"
@@ -91,7 +91,7 @@ PARAMS_TO_MELSPEC = {
 ##############
 ### MODELS ###
 ##############
-EPOCHS = 20
+EPOCHS = 30
 BATCH_SIZE = 32
 
 ACT_THRESHOLD = 0.5
@@ -110,7 +110,7 @@ LR_adam = 0.01
 WD = 0.0001
 
 ### Optimizer SGD ###
-LR_sgd = 0.03
+LR_sgd = 0.05
 MOMENTUM = 0.9
 
 ### Scheduler 1 ###
