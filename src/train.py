@@ -67,7 +67,9 @@ def train_batches(
         # Track statistics
         loss = loss.detach()
         training_loss += loss
-        correct_tr[i], total_tr = update_acc(activation(outputs), labels, total_tr)
+        correct_tr[i], total_tr = update_acc(
+            activation(outputs, ACT_THRESHOLD), labels, total_tr
+        )
 
     return training_loss, correct_tr, total_tr, i
 
