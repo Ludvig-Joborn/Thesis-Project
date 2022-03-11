@@ -22,8 +22,9 @@ class DESED_Strong(Dataset):
     def __len__(self) -> int:
         return len(self.filenames)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, torch.Tensor]:
-        wav_path = self.wav_dir / self.filenames[idx]
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
+        filename = self.filenames[idx]
+        wav_path = self.wav_dir / filename
         if not wav_path.exists():
             raise ValueError(f"File {wav_path} does not exist")
         waveform, sample_rate = torchaudio.load(wav_path)
@@ -36,26 +37,30 @@ class DESED_Strong(Dataset):
         waveform = trim_audio(waveform, sample_rate, self.clip_len_seconds)
 
         # Get annotations as a pandas dataframe
-        labels = get_rows_from_annotations(self.df_annotations, self.filenames[idx])
+        labels = get_rows_from_annotations(self.df_annotations, filename)
 
         # Convert labels to one hot encoding of speech activity
         labeled_frames = label_frames(labels)
 
-        return waveform, labeled_frames
+        return waveform, labeled_frames, idx
 
     def __str__(self) -> str:
         return f"{self.name} dataset"
+
+    def filename(self, idx: int) -> str:
+        return self.filenames[idx]
 
     def get_sample_rate(self) -> int:
         """
         Assumes that all audio files in 'wav_dir' have the same sample rate.
         """
+        len_ = self.__len__()
         i = 0
         wav_path = self.wav_dir / self.filenames[i]
         while not wav_path.exists():
             i += 1
             wav_path = self.wav_dir / self.filenames[i]
-            if i > self.__len__():
+            if i > len_:  # Check if i > number of files/entries in dataset
                 raise ValueError(
                     f"Could not locate audio files in path: {self.wav_dir}"
                 )

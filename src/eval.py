@@ -44,7 +44,7 @@ def te_val_batches(
     with torch.no_grad():
         desc = "Test Batch progress:" if testing else "Valdiation Batch progress:"
         for i, sample in enumerate(tqdm(iterable=data_loader, desc=desc)):
-            waveform, labels = sample
+            waveform, labels, _ = sample
 
             # Send parameters to device
             waveform = waveform.to(device, non_blocking=True)

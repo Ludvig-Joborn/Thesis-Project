@@ -81,7 +81,7 @@ def train_batches(
     for i, sample in enumerate(
         tqdm(iterable=tr_loader, desc="Training Batch progress:")
     ):
-        waveform, labels = sample
+        waveform, labels, _ = sample
 
         # Send parameters to device
         waveform = waveform.to(device, non_blocking=True)
