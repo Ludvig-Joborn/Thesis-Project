@@ -56,7 +56,9 @@ def te_val_batches(
 
             # Track loss statistics
             total_loss += loss
-            correct[i], total = update_acc(activation(outputs), labels, total)
+            correct[i], total = update_acc(
+                activation(outputs, ACT_THRESHOLD), labels, total
+            )
 
         return total_loss, correct, total, i
 

@@ -104,7 +104,7 @@ def train_batches(
         loss = loss.detach()
         training_loss += loss
         total_tr += torch.numel(labels)
-        predictions = activation(outputs)
+        predictions = activation(outputs, ACT_THRESHOLD)
         # Calculate mixup-based correct predictions.
         correct_tr[i] = (
             lam * predictions.eq(labels).sum().float()

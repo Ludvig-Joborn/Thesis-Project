@@ -12,12 +12,12 @@ def nr_parameters(model) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def activation(output: torch.Tensor) -> torch.Tensor:
+def activation(output: torch.Tensor, act_threshold: float) -> torch.Tensor:
     """
     Activation function that sqaushes the output to a value of 0 or 1
     depending on the threshold.
     """
-    return (output > ACT_THRESHOLD).float()
+    return (output > act_threshold).float()
 
 
 def update_acc(
