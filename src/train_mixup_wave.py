@@ -129,7 +129,6 @@ def train(
     criterion,
     optimizer,
     scheduler1,
-    scheduler2,
     log: Logger,
     model_save: Dict,
 ) -> Tuple[List[float], float]:
@@ -157,7 +156,6 @@ def train(
 
         # Update learning_rate
         scheduler1.step()
-        scheduler2.step()
 
         # Log training loss and accuracy
         log.info(
@@ -209,7 +207,6 @@ def train(
             "state_dict": model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "scheduler1": scheduler1.state_dict(),
-            "scheduler2": scheduler2.state_dict(),
             "model_save": model_save,
         }
         save_model(state, False, model_path)
@@ -272,7 +269,6 @@ if __name__ == "__main__":
 
     # Schedulers for updating learning rate
     scheduler1 = ExponentialLR(optimizer, gamma=GAMMA_1)
-    scheduler2 = MultiStepLR(optimizer, milestones=MILESTONES, gamma=GAMMA_2)
 
     # Load model from disk to continue training
     if CONTINUE_TRAINING:
@@ -280,7 +276,6 @@ if __name__ == "__main__":
         model.load_state_dict(state["state_dict"])
         optimizer.load_state_dict(state["optimizer"])
         scheduler1.load_state_dict(state["scheduler1"])
-        scheduler2.load_state_dict(state["scheduler2"])
 
         # Dictionary with path, losses and accuracies
         model_save = state["model_save"]
@@ -321,7 +316,6 @@ if __name__ == "__main__":
         criterion,
         optimizer,
         scheduler1,
-        scheduler2,
         log,
         model_save,
     )

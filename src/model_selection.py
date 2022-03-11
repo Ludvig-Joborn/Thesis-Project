@@ -117,7 +117,6 @@ def model_selection(filename: str, network: nn.Module):
 
     # Schedulers for updating learning rate
     scheduler1 = ExponentialLR(optimizer, gamma=GAMMA_1)
-    scheduler2 = MultiStepLR(optimizer, milestones=MILESTONES, gamma=GAMMA_2)
 
     start_epoch = 1
     # Model Paths for saving model during training
@@ -152,7 +151,6 @@ def model_selection(filename: str, network: nn.Module):
         criterion,
         optimizer,
         scheduler1,
-        scheduler2,
         log,
         model_save,
     )
