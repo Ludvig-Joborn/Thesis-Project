@@ -1147,6 +1147,7 @@ def plot_psd_roc(psd, en_std=False, axes=None, filename=None, **kwargs):
     if filename:
         plt.savefig(filename)
     if show:
+        plt.grid(True)
         plt.show()
     else:
         plt.close()
@@ -1198,4 +1199,5 @@ def plot_per_class_psd_roc(
     if filename:
         plt.savefig(filename)
     if show:
+        plt.grid(True)
         plt.show()

@@ -3,6 +3,7 @@ This is the configuration file for this application.
 """
 
 from pathlib import Path
+import numpy as np
 
 ################
 ### DATASETS ###
@@ -98,7 +99,7 @@ ACT_THRESHOLD = 0.5
 
 ### Save & Load Model ###
 CONTINUE_TRAINING = False
-LOAD_MODEL_PATH = Path("E:/saved_models/2022-02-23_16-24.pt")
+LOAD_MODEL_PATH = Path("E:/saved_models/s1/baseline_s1.pt")
 
 
 ################
@@ -124,6 +125,25 @@ MILESTONES = [15, 40, 75]
 ##################
 ### EVALUATION ###
 ##################
+
+PLOT_TR_VAL_ACC = True
+
+### PSDS ###
+# If PSDS and F1-Score should be calculated
+CALC_PSDS = True
+PLOT_PSD_ROC = True
+N_THRESHOLD = 50
+OPERATING_POINTS = np.linspace(0.01, 0.99, N_THRESHOLD)
+
+PSDS_PARAMS = {
+    "duration_unit": "minute",
+    "dtc_threshold": 0.1,
+    "gtc_threshold": 0.1,
+    "cttc_threshold": 0.1,
+    "alpha_ct": 0.0,
+    "alpha_st": 0.0,
+    "max_efpr": None,  # Will be set to max value
+}
 
 
 ############
