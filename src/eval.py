@@ -35,9 +35,8 @@ def te_val_batches(
     if CALC_PSDS:
         ### PSDS ###
         # Mel-Spectrogram frames
-        frames = math.ceil((CLIP_LEN_SECONDS * SAMPLE_RATE) / HOP_LENGTH)
         output_table = torch.empty(
-            (len_data, frames),
+            (len_data, N_MELSPEC_FRAMES),
             device=device,
         )  # Size: (692, 157) for desed public eval and 16kHz sampling
         file_ids = torch.empty((len_data), device=device)

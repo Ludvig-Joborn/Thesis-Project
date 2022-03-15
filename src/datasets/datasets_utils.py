@@ -5,7 +5,7 @@ import math
 from typing import List
 
 # User defined imports
-from config import HOP_LENGTH, SAMPLE_RATE, CLIP_LEN_SECONDS, NR_CLASSES
+from config import N_MELSPEC_FRAMES, CLIP_LEN_SECONDS, NR_CLASSES
 
 
 def get_wav_filenames(path: Path) -> List[str]:
@@ -103,10 +103,8 @@ def label_frames(labels: pd.DataFrame) -> torch.Tensor:
     where '1' indicates the presence of speech.
     """
     if NR_CLASSES == 1:
-        frames = math.ceil((CLIP_LEN_SECONDS * SAMPLE_RATE) / HOP_LENGTH)
-
         # Create a tensor of zeros
-        labeled_frames = torch.zeros(NR_CLASSES, frames)
+        labeled_frames = torch.zeros(NR_CLASSES, N_MELSPEC_FRAMES)
 
         # Get rows from annotations with speech
         speech = labels.loc[labels["Speech"] == 1]
@@ -116,8 +114,8 @@ def label_frames(labels: pd.DataFrame) -> torch.Tensor:
 
         # Map seconds to frame number. Round onset down and offset up.
         for _, row in speech.iterrows():
-            onset = math.floor(frames * row["onset"] / CLIP_LEN_SECONDS)
-            offset = math.ceil(frames * row["offset"] / CLIP_LEN_SECONDS)
+            onset = math.floor(N_MELSPEC_FRAMES * row["onset"] / CLIP_LEN_SECONDS)
+            offset = math.ceil(N_MELSPEC_FRAMES * row["offset"] / CLIP_LEN_SECONDS)
             labeled_frames[:, onset : (offset + 1)] = 1
 
         return labeled_frames
