@@ -4,10 +4,12 @@ from torch.utils.data import DataLoader
 from torch import nn
 from tqdm import tqdm
 import logging
+import math
 
 # User defined imports
 from config import *
 from utils import *
+from psds_utils import *
 from models.model_utils import *
 from logger import CustomLogger as Logger
 from datasets.dataset_handler import DatasetWrapper
@@ -25,11 +27,24 @@ def te_val_batches(
     model,
     criterion,
     testing: bool = False,
-) -> Tuple[float, torch.Tensor, int, int]:
+) -> Tuple[float, torch.Tensor, int, int, torch.Tensor, torch.Tensor]:
     """
     Runs batches for the dataloader sent in without updating any model weights.
     Used for calculating validation and test accuracy and loss.
     """
+    if CALC_PSDS:
+        ### PSDS ###
+        # Mel-Spectrogram frames
+        frames = math.ceil((CLIP_LEN_SECONDS * SAMPLE_RATE) / HOP_LENGTH)
+        output_table = torch.empty(
+            (len_data, frames),
+            device=device,
+        )  # Size: (692, 157) for desed public eval and 16kHz sampling
+        file_ids = torch.empty((len_data), device=device)
+        # variable for number of added elements
+        n_added_elems = torch.tensor(0, device=device)
+        ############
+
     # Track loss
     total_loss = 0
 
@@ -44,7 +59,7 @@ def te_val_batches(
     with torch.no_grad():
         desc = "Test Batch progress:" if testing else "Valdiation Batch progress:"
         for i, sample in enumerate(tqdm(iterable=data_loader, desc=desc)):
-            waveform, labels, _ = sample
+            waveform, labels, file_id = sample
 
             # Send parameters to device
             waveform = waveform.to(device, non_blocking=True)
@@ -60,7 +75,26 @@ def te_val_batches(
                 activation(outputs, ACT_THRESHOLD), labels, total
             )
 
-        return total_loss, correct, total, i
+            if CALC_PSDS:
+                ### PSDS ###
+                # Add file id to tensor (used for getting filenames later)
+                len_ = file_id.shape[0]
+                file_ids[n_added_elems : (n_added_elems + len_)] = file_id
+
+                # Reduce dimensions
+                outputs = torch.squeeze(outputs)
+
+                # Add outputs to output_table
+                len_ = outputs.shape[0]
+                output_table[n_added_elems : (n_added_elems + len_), :] = outputs
+
+                # Track number of added elements so far
+                n_added_elems += len_
+                ############
+    if CALC_PSDS:
+        return total_loss, correct, total, i, output_table, file_ids
+
+    return total_loss, correct, total, i, torch.tensor([]), torch.tensor([])
 
 
 def test(
@@ -76,9 +110,14 @@ def test(
     """
 
     ##### Run test batches #####
-    test_loss, correct, total, total_te_batches = te_val_batches(
-        te_loader, len_te, model, criterion, testing
-    )
+    (
+        test_loss,
+        correct,
+        total,
+        total_te_batches,
+        output_table,
+        file_ids,
+    ) = te_val_batches(te_loader, len_te, model, criterion, testing)
 
     # Log test loss and accuracy
     test_loss = test_loss.item()
@@ -89,7 +128,7 @@ def test(
     )
     log.info(f"Average test accuracy: {test_acc}", display_console=True)
 
-    return test_loss, test_acc
+    return test_loss, test_acc, output_table, file_ids
 
 
 if __name__ == "__main__":
@@ -129,7 +168,9 @@ if __name__ == "__main__":
     ### Test Model ###
     log.info("Testing", add_header=True)
 
-    te_loss, te_acc = test(DS_test_loader, len_te, model, criterion, log, testing=True)
+    te_loss, te_acc, output_table, file_ids = test(
+        DS_test_loader, len_te, model, criterion, log, testing=True
+    )
 
     # Dictionary with paths, losses and accuracies
     model_save = state["model_save"]
@@ -138,6 +179,33 @@ if __name__ == "__main__":
     val_epoch_losses = model_save["val_epoch_losses"]
     val_epoch_accs = model_save["val_epoch_accs"]
 
-    plot_tr_val_acc_loss(
-        tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs
-    )
+    # Plot training and validation accuracy
+    if PLOT_TR_VAL_ACC:
+        plot_tr_val_acc_loss(
+            tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs
+        )
+
+    if CALC_PSDS:
+        log.info("PSD-Score", add_header=True)
+
+        ### PSDS and F1-Score ###
+        operating_points_table = get_detection_table(output_table, file_ids, DS_test)
+
+        # Get PSD-Score, F1-Score and optionally plot the PSD-ROC curve
+        psds, f1_score_obj = psd_score(
+            operating_points_table, DS_test.get_annotations(), plot=PLOT_PSD_ROC
+        )
+
+        log.info(
+            "Parameters: "
+            f"dtc={PSDS_PARAMS['dtc_threshold']}"
+            f" | gtc={PSDS_PARAMS['gtc_threshold']}"
+            f" | cttc={PSDS_PARAMS['cttc_threshold']}"
+            f" | alpha_ct={PSDS_PARAMS['alpha_ct']}"
+            f" | alpha_st={PSDS_PARAMS['alpha_st']}"
+        )
+        log.info(f"PSD-Score:    {psds:5f}")
+        log.info(f"TPR:          {f1_score_obj.TPR[0]:5f}")
+        log.info(f"FPR:          {f1_score_obj.FPR[0]:5f}")
+        log.info(f"OP-threshold: {f1_score_obj.threshold[0]}")
+        log.info(f"F1-Score:     {f1_score_obj.Fscore[0]:5f}")

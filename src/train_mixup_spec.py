@@ -167,9 +167,14 @@ def train(
         tr_epoch_accs.append(correct_tr.sum().item() / total_tr)
 
         ##### Model validation #####
-        validation_loss, correct_val, total_val, total_val_epochs = te_val_batches(
-            val_loader, len_val, model, criterion
-        )
+        (
+            validation_loss,
+            correct_val,
+            total_val,
+            total_val_epochs,
+            _,
+            _,
+        ) = te_val_batches(val_loader, len_val, model, criterion)
 
         # Log validation loss and accuracy
         log.info(
@@ -318,7 +323,9 @@ if __name__ == "__main__":
     ### Test Model (temporary) ###
     log.info("Testing", add_header=True)
 
-    te_loss, te_acc = test(DS_test_loader, len_te, model, criterion, log, testing=True)
+    te_loss, te_acc, _, _ = test(
+        DS_test_loader, len_te, model, criterion, log, testing=True
+    )
 
     plot_tr_val_acc_loss(
         tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs

@@ -50,6 +50,9 @@ class DESED_Strong(Dataset):
     def filename(self, idx: int) -> str:
         return self.filenames[idx]
 
+    def get_annotations(self) -> pd.DataFrame:
+        return self.df_annotations
+
     def get_sample_rate(self) -> int:
         """
         Assumes that all audio files in 'wav_dir' have the same sample rate.
