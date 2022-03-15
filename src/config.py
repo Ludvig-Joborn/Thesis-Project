@@ -4,6 +4,7 @@ This is the configuration file for this application.
 
 from pathlib import Path
 import numpy as np
+import math
 
 ################
 ### DATASETS ###
@@ -69,6 +70,8 @@ N_MELS = 128
 HOP_LENGTH = 1024
 FMIN = 0
 FMAX = 8000
+
+N_MELSPEC_FRAMES = math.ceil((CLIP_LEN_SECONDS * SAMPLE_RATE) / HOP_LENGTH)
 
 PARAMS_TO_MELSPEC = {
     "sr": SAMPLE_RATE,
