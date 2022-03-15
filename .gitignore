@@ -133,3 +133,8 @@ data/
 .vscode/
 logs/
 saved_models/
+
+# From psds_eval/
+jupyter/
+examples/
+tests/
