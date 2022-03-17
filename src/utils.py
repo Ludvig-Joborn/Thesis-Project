@@ -171,30 +171,3 @@ def plot_model_selection(model_saves):
     plt.legend()
 
     plt.show()
-
-
-if __name__ == "__main__":
-    dict = {
-        "b1": {
-            "model_path": None,
-            "best_model_path": None,
-            "tr_epoch_losses": [0.2],
-            "tr_epoch_accs": [0.8],
-            "val_epoch_losses": [0.3],
-            "val_epoch_accs": [0.7],
-            "best_val_acc": 0,
-            "log_path": None,
-        },
-        "b2": {
-            "model_path": None,
-            "best_model_path": None,
-            "tr_epoch_losses": [0.25],
-            "tr_epoch_accs": [0.65],
-            "val_epoch_losses": [0.4],
-            "val_epoch_accs": [0.5],
-            "best_val_acc": 0,
-            "log_path": None,
-        },
-    }
-    epochs = len(dict["b1"]["tr_epoch_losses"])
-    plot_model_selection(dict, epochs)

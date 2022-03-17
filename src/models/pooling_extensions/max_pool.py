@@ -16,13 +16,6 @@ dcase 2021 - place 10 - With CBAM and residual conv.
 https://dcase.community/documents/challenge2021/technical_reports/DCASE2021_Park_101_t4.pdf
 """
 
-"""
-LP Pool 2D
-inspiration from: 
-https://arxiv.org/pdf/2105.04065.pdf
-Uses power norm = 4
-"""
-
 
 class NeuralNetwork(nn.Module):
     def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
