@@ -3,18 +3,18 @@ from torch import nn
 
 
 """
-Channel and Spatial-Attention (CBAM) taken from:
-https://github.com/luuuyi/CBAM.PyTorch/blob/master/model/resnet_cbam.py
+Channel and Spatial-Attention (CBAM) taken (and modified) from:
+https://github.com/xmu-xiaoma666/External-Attention-pytorch/blob/master/model/attention/CBAM.py
 """
 
 
 class ChannelAttention(nn.Module):
     def __init__(self, inC, reduction=16):
         super(ChannelAttention, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
 
-        self.fc = nn.Sequential(
+        self.se = nn.Sequential(
             nn.Conv2d(
                 in_channels=inC,
                 out_channels=inC // reduction,
@@ -32,31 +32,26 @@ class ChannelAttention(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def __call__(self, x):
-        avg_out = self.fc(self.avg_pool(x))
-        max_out = self.fc(self.max_pool(x))
-        out = avg_out + max_out
-        return self.sigmoid(out)
+        max_res = self.se(self.max_pool(x))
+        avg_res = self.se(self.avg_pool(x))
+        return self.sigmoid(max_res + avg_res)
 
 
 class SpatialAttention(nn.Module):
     def __init__(self, c_ks=7):
         super(SpatialAttention, self).__init__()
 
-        self.conv1 = nn.Conv2d(
-            in_channels=2,
-            out_channels=1,
-            kernel_size=c_ks,
-            padding=c_ks // 2,
-            bias=False,
+        self.conv = nn.Conv2d(
+            in_channels=2, out_channels=1, kernel_size=c_ks, padding=c_ks // 2
         )
         self.sigmoid = nn.Sigmoid()
 
     def __call__(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        x = torch.cat([avg_out, max_out], dim=1)
-        x = self.conv1(x)
-        return self.sigmoid(x)
+        max_res, _ = torch.max(x, dim=1, keepdim=True)
+        avg_res = torch.mean(x, dim=1, keepdim=True)
+        res = torch.cat([max_res, avg_res], dim=1)
+        out = self.conv(res)
+        return self.sigmoid(out)
 
 
 class CBAM(nn.Module):

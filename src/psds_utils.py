@@ -17,7 +17,7 @@ def get_detection_table(
     dataset,
 ) -> Dict[float, pd.DataFrame]:
     """
-    calculates detection (speech) intervals on the CPU and returns a dictionary
+    Calculates detection (speech) intervals on the CPU and returns a dictionary
     with detections for each operating point.
     """
     # Dictionary containing detections (pandas DataFrames)
@@ -43,6 +43,53 @@ def get_detection_table(
         op_tables[op] = pd.DataFrame(detections, columns=cols)
 
     return op_tables
+
+
+def frames_to_intervals(
+    input: torch.Tensor, filename: str
+) -> List[List[Union[str, float, float, str]]]:
+    """
+    Converts frame-wise output into time-intervals
+    for each row where speech is detected.
+    The return format is the following::
+
+    ```
+        [["event_label", "onset", "offset", "filename"], ...]
+    ```
+    For example::
+
+    ```
+    [
+        ["Speech", 0.2, 5.6, "audio_file1.wav"],  # Speech detection 1
+        ["Speech", 7.3, 10.0, "audio_file2.wav"],  # Speech detection 2
+        ...
+    ]
+    ```
+    """
+    outputs = []
+    activity = []
+    detecting_speech = False
+    intervals = np.linspace(0, CLIP_LEN_SECONDS, len(input))
+    for i in range(len(intervals)):
+        if input[i] == 1:
+            if not detecting_speech:
+                detecting_speech = True
+                activity.append("Speech")
+                activity.append(intervals[i])  # Start speech interval
+        if input[i] == 0:
+            if detecting_speech:
+                detecting_speech = False
+                activity.append(intervals[i - 1])  # End speech interval
+                activity.append(filename)
+                outputs.append(activity)
+                activity = []
+
+    if detecting_speech:  # Catch cases where the final frame contains speech.
+        activity.append(intervals[i])
+        activity.append(filename)
+        outputs.append(activity)
+
+    return outputs
 
 
 def psd_score(
@@ -113,50 +160,3 @@ def psd_score(
         plot_psd_roc(psds)
 
     return psds.value, op_with_highest_fscore
-
-
-def frames_to_intervals(
-    input: torch.Tensor, filename: str
-) -> List[List[Union[str, float, float, str]]]:
-    """
-    Converts frame-wise output into time-intervals
-    for each row where speech is detected.
-    The return format is the following::
-
-    ```
-        [["event_label", "onset", "offset", "filename"], ...]
-    ```
-    For example::
-
-    ```
-    [
-        ["Speech", 0.2, 5.6, "audio_file1.wav"],  # Speech detection 1
-        ["Speech", 7.3, 10.0, "audio_file2.wav"],  # Speech detection 2
-        ...
-    ]
-    ```
-    """
-    outputs = []
-    activity = []
-    detecting_speech = False
-    intervals = np.linspace(0, CLIP_LEN_SECONDS, len(input))
-    for i in range(len(intervals)):
-        if input[i] == 1:
-            if not detecting_speech:
-                detecting_speech = True
-                activity.append("Speech")
-                activity.append(intervals[i])  # Start speech interval
-        if input[i] == 0:
-            if detecting_speech:
-                detecting_speech = False
-                activity.append(intervals[i - 1])  # End speech interval
-                activity.append(filename)
-                outputs.append(activity)
-                activity = []
-
-    if detecting_speech:  # Catch cases where the final frame contains speech.
-        activity.append(intervals[i])
-        activity.append(filename)
-        outputs.append(activity)
-
-    return outputs
