@@ -73,7 +73,19 @@ def model_selection(filename: str, network: nn.Module):
     """
     Trains a model on a given network-structure.
     """
-    torch.backends.cudnn.benchmark = True
+    if DETERMINISTIC_RUN:
+        import numpy as np
+        import random
+
+        random.seed(SEED)
+        np.random.seed(SEED)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.manual_seed(SEED)
+        torch.cuda.manual_seed_all(SEED)
+    else:
+        # Used for optimizing CNN training (when data is of same-sized inputs)
+        torch.backends.cudnn.benchmark = True
 
     # Create new logfile
     log_path = create_path(Path(LOG_DIR), filename, ".log")
