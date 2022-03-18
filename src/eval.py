@@ -10,6 +10,7 @@ import math
 from config import *
 from utils import *
 from psds_utils import *
+from psds_eval import plot_psd_roc
 from models.model_utils import *
 from logger import CustomLogger as Logger
 from datasets.dataset_handler import DatasetWrapper
@@ -190,9 +191,9 @@ if __name__ == "__main__":
         ### PSDS and F1-Score ###
         operating_points_table = get_detection_table(output_table, file_ids, DS_test)
 
-        # Get PSD-Score, F1-Score and optionally plot the PSD-ROC curve
+        # Get PSD-Score, F1-Score
         psds, f1_score_obj = psd_score(
-            operating_points_table, DS_test.get_annotations(), plot=PLOT_PSD_ROC
+            operating_points_table, DS_test.get_annotations()
         )
 
         log.info(
@@ -203,8 +204,13 @@ if __name__ == "__main__":
             f" | alpha_ct={PSDS_PARAMS['alpha_ct']}"
             f" | alpha_st={PSDS_PARAMS['alpha_st']}"
         )
-        log.info(f"PSD-Score:    {psds:5f}")
+        log.info(f"PSD-Score:    {psds.value:5f}")
         log.info(f"TPR:          {f1_score_obj.TPR[0]:5f}")
         log.info(f"FPR:          {f1_score_obj.FPR[0]:5f}")
         log.info(f"OP-threshold: {f1_score_obj.threshold[0]}")
         log.info(f"F1-Score:     {f1_score_obj.Fscore[0]:5f}")
+
+        if PLOT_PSD_ROC:
+            # Plot the PSD-ROC
+            plt.style.use("fast")
+            plot_psd_roc(psds)

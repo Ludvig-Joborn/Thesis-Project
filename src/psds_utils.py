@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from psds_eval import PSDSEval, plot_psd_roc
+from psds_eval import PSDSEval  # , PSDS
 from typing import List, Dict, Union, Tuple
 
 # User defined imports
@@ -93,8 +93,8 @@ def frames_to_intervals(
 
 
 def psd_score(
-    op_tables: Dict[float, pd.DataFrame], annotations: pd.DataFrame, plot: bool = False
-) -> Tuple[float, pd.DataFrame]:
+    op_tables: Dict[float, pd.DataFrame], annotations: pd.DataFrame
+) -> Tuple["PSDS", pd.DataFrame]:
     """
     Calculate PSDS Score, F1-Score and plot a ROC-PSD curve if specified.
 
@@ -154,9 +154,4 @@ def psd_score(
         cc, alpha_ct=PSDS_PARAMS["alpha_ct"]
     )
 
-    if plot:
-        # Plot the PSD-ROC
-        plt.style.use("fast")
-        plot_psd_roc(psds)
-
-    return psds.value, op_with_highest_fscore
+    return psds, op_with_highest_fscore
