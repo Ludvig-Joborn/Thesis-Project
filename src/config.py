@@ -6,6 +6,13 @@ from pathlib import Path
 import numpy as np
 import math
 
+
+### Train model with deterministic behaviour ###
+# A deterministic run might take longer
+SEED = 42069
+DETERMINISTIC_RUN = False
+
+
 ################
 ### DATASETS ###
 ################
@@ -41,7 +48,7 @@ PATH_TO_SYNTH_VAL_DESED_WAVS = Path(
 
 # Test Dataset - Public Eval
 TEST_DESED_NAME = "DESED Public Eval"
-NUM_WORKERS_TEST_DESED = 2
+NUM_WORKERS_TEST_DESED = 0 if DETERMINISTIC_RUN else 2
 PATH_TO_PUBLIC_TEST_DESED_TSV = Path(
     "E:/Datasets/desed_zenodo/DESEDpublic_eval/dataset/metadata/eval/public.tsv"
 )

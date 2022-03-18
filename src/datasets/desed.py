@@ -4,9 +4,11 @@ import torchaudio
 from pathlib import Path
 import pandas as pd
 from typing import Tuple
+import random
 
 # User defined imports
 from datasets.datasets_utils import *
+from config import DETERMINISTIC_RUN
 
 
 class DESED_Strong(Dataset):
@@ -18,6 +20,9 @@ class DESED_Strong(Dataset):
         self.wav_dir = wav_dir
         self.filenames = get_wav_filenames(self.wav_dir)
         self.clip_len_seconds = clip_len_seconds
+
+        if DETERMINISTIC_RUN:
+            random.shuffle(self.filenames)
 
     def __len__(self) -> int:
         return len(self.filenames)
