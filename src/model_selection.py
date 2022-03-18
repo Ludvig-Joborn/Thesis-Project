@@ -17,6 +17,7 @@ from datasets.dataset_handler import DatasetWrapper
 # Baseline, basic
 from models.model_extensions_1.basic_nn import NeuralNetwork as basic_nn
 from models.baseline import NeuralNetwork as baseline
+from models.improved_baseline import NeuralNetwork as improved_baseline
 
 # b2
 from models.model_extensions_1.b2 import NeuralNetwork as b2
@@ -67,6 +68,16 @@ from models.act_funcs.ls_relu import NeuralNetwork as ls_relu
 from models.act_funcs.ls_relu_tr import NeuralNetwork as ls_relu_tr
 from models.act_funcs.swish import NeuralNetwork as swish
 from models.act_funcs.swish_tr import NeuralNetwork as swish_tr
+
+# Normalization methods
+from models.normalization.baseline_norm import NeuralNetwork as baseline_norm
+from models.normalization.baseline_norm_bn import NeuralNetwork as baseline_norm_bn
+from models.normalization.improved_baseline_norm import (
+    NeuralNetwork as improved_baseline_norm,
+)
+from models.normalization.improved_baseline_norm_bn import (
+    NeuralNetwork as improved_baseline_norm_bn,
+)
 
 
 def model_selection(filename: str, network: nn.Module):
@@ -181,11 +192,14 @@ if __name__ == "__main__":
 
     # Load pre trained models and add to dict
     trained_modules = {
-        "baseline": load_model(Path("E:/saved_models/baseline.pt"))["model_save"],
-        "b1_cbam": load_model(Path("E:/saved_models/b1_cbam.pt"))["model_save"],
-        "b1_cbam_drop01": load_model(Path("E:/saved_models/b1_cbam_drop01.pt"))[
-            "model_save"
-        ],
+        # "baseline": load_model(Path("E:/saved_models/old_CBAM/s1/baseline_s1.pt"))["model_save"],
+        # "improved_baseline": load_model(Path("E:/saved_models/old_CBAM/s1/gru_2_s1.pt"))[
+        #     "model_save"
+        # ],
+        # "b1_cbam": load_model(Path("E:/saved_models/old_CBAM/b1_cbam.pt"))["model_save"],
+        # "b1_cbam_drop01": load_model(Path("E:/saved_models/old_CBAM/b1_cbam_drop01.pt"))[
+        #     "model_save"
+        # ],
     }
     for key, model_save in trained_modules.items():
         model_saves[key] = model_save
@@ -224,6 +238,12 @@ if __name__ == "__main__":
         # Activation function Swish
         # "swish": swish,
         # "swish_tr": swish_tr,
+        "baseline": baseline,
+        "improved_baseline": improved_baseline,
+        "baseline_norm": baseline_norm,
+        "baseline_norm_bn": baseline_norm_bn,
+        "improved_baseline_norm": improved_baseline_norm,
+        "improved_baseline_norm_bn": improved_baseline_norm_bn,
     }
 
     # Train each model and store the 'model_save'
