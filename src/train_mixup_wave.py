@@ -9,14 +9,14 @@ from torch.autograd import Variable
 import numpy as np
 
 # User defined imports
-from config import *
+import config
 from utils import *
 from eval import te_val_batches, test
 from models.model_utils import *
 from datasets.datasets_utils import *
 from logger import CustomLogger as Logger
 from models.baseline import NeuralNetwork as NN
-from datasets.dataset_handler import DatasetWrapper
+from datasets.dataset_handler import DatasetManager
 
 """
 This file is for training models by applying mixup on waveforms.
@@ -76,7 +76,9 @@ def train_batches(
     training_loss = 0
 
     # Track correct and total predictions to calculate epoch accuracy
-    correct_tr = torch.zeros(-(len_tr // -BATCH_SIZE)).to(device, non_blocking=True)
+    correct_tr = torch.zeros(-(len_tr // -config.BATCH_SIZE)).to(
+        device, non_blocking=True
+    )
     total_tr = 0
 
     # Set model state to training
@@ -109,7 +111,7 @@ def train_batches(
         loss = loss.detach()
         training_loss += loss
         total_tr += torch.numel(labels)
-        predictions = activation(outputs, ACT_THRESHOLD)
+        predictions = activation(outputs, config.ACT_THRESHOLD)
         # Calculate mixup-based correct predictions.
         correct_tr[i] = (
             lam * predictions.eq(labels).sum().float()
@@ -232,51 +234,55 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
 
     ### MISC ###
-    if CONTINUE_TRAINING:
-        state = load_model(LOAD_MODEL_PATH)
+    if config.CONTINUE_TRAINING:
+        state = load_model(config.LOAD_MODEL_PATH)
         log_path = state["model_save"]["log_path"]
     else:
         # Create new logfile
-        filename = get_datetime() + "_" + LOGGER_TRAIN.split("-")[0]
-        log_path = create_path(Path(LOG_DIR), filename, ".log")
+        filename = get_datetime() + "_" + config.LOGGER_TRAIN.split("-")[0]
+        log_path = create_path(Path(config.LOG_DIR), filename, ".log")
 
-    log = Logger(LOGGER_TRAIN, log_path)
+    log = Logger(config.LOGGER_TRAIN, log_path)
 
     ### Load Datasets ###
 
-    # Load datasets via DatasetWrapper
-    DW = DatasetWrapper()
-    DS_train_loader = DW.get_train_loader()
-    DS_val_loader = DW.get_val_loader()
-    DS_test_loader = DW.get_test_loader()
-
-    DS_train = DW.get_train_ds()
-    DS_val = DW.get_val_ds()
-    DS_test = DW.get_test_ds()
+    # Load datasets via DatasetManager
+    DM = DatasetManager()
+    # Load Train
+    DS_train_loader = DM.load_dataset(**config.DESED_SYNTH_TRAIN_ARGS)
+    DS_train = DM.get_dataset(config.DESED_SYNTH_TRAIN_ARGS["name"])
+    # Load Validation
+    DS_val_loader = DM.load_dataset(**config.DESED_SYNTH_VAL_ARGS)
+    DS_val = DM.get_dataset(config.DESED_SYNTH_VAL_ARGS["name"])
+    # Load Test
+    DS_test_loader = DM.load_dataset(**config.DESED_PUBLIC_EVAL_ARGS)
+    DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
 
     len_tr = len(DS_train)
     len_val = len(DS_val)
     len_te = len(DS_test)
 
     # Prerequisite: All datasets have the same sample rate.
-    sample_rate = DW.get_train_ds().get_sample_rate()
+    sample_rate = DS_train.get_sample_rate()
 
     ### Declare Model ###
 
     # Network
-    model = NN(sample_rate, SAMPLE_RATE).to(device, non_blocking=True)
+    model = NN(sample_rate, config.SAMPLE_RATE).to(device, non_blocking=True)
 
     # Loss function
     criterion = nn.BCELoss()
 
     # optimizer = optim.Adam(model.parameters(), lr=LR_adam, weight_decay=WD)
-    optimizer = optim.SGD(model.parameters(), lr=LR_sgd, momentum=MOMENTUM)
+    optimizer = optim.SGD(
+        model.parameters(), lr=config.LR_sgd, momentum=config.MOMENTUM
+    )
 
     # Schedulers for updating learning rate
-    scheduler1 = ExponentialLR(optimizer, gamma=GAMMA_1)
+    scheduler1 = ExponentialLR(optimizer, gamma=config.GAMMA_1)
 
     # Load model from disk to continue training
-    if CONTINUE_TRAINING:
+    if config.CONTINUE_TRAINING:
         start_epoch = state["epoch"] + 1  # Start from next epoch
         model.load_state_dict(state["state_dict"])
         optimizer.load_state_dict(state["optimizer"])
@@ -288,12 +294,12 @@ if __name__ == "__main__":
         log.info("")
         log.info("")
         log.info("")
-        log.info(f"Loaded model from {LOAD_MODEL_PATH}")
+        log.info(f"Loaded model from {config.LOAD_MODEL_PATH}")
     else:
         start_epoch = 1
         # Model Paths for saving model during training
-        model_path = create_path(Path(SAVED_MODELS_DIR))
-        best_model_path = create_path(Path(SAVED_MODELS_DIR), best=True)
+        model_path = create_path(Path(config.SAVED_MODELS_DIR))
+        best_model_path = create_path(Path(config.SAVED_MODELS_DIR), best=True)
         model_save = {
             "model_path": model_path,
             "best_model_path": best_model_path,

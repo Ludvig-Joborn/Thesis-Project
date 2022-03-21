@@ -5,14 +5,13 @@ from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
 
 # User defined imports
 import logging
-from config import *
 from utils import *
 from train import train
 from eval import test
 from models.model_utils import *
 from datasets.datasets_utils import *
 from logger import CustomLogger as Logger
-from datasets.dataset_handler import DatasetWrapper
+from datasets.dataset_handler import DatasetManager
 
 # Baseline, basic
 from models.model_extensions_1.basic_nn import NeuralNetwork as basic_nn
@@ -73,23 +72,25 @@ def model_selection(filename: str, network: nn.Module):
     """
     Trains a model on a given network-structure.
     """
-    if DETERMINISTIC_RUN:
+    if config.DETERMINISTIC_RUN:
         import numpy as np
         import random
 
-        random.seed(SEED)
-        np.random.seed(SEED)
+        random.seed(config.SEED)
+        np.random.seed(config.SEED)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        torch.manual_seed(SEED)
-        torch.cuda.manual_seed_all(SEED)
+        torch.manual_seed(config.SEED)
+        torch.cuda.manual_seed_all(config.SEED)
     else:
         # Used for optimizing CNN training (when data is of same-sized inputs)
         torch.backends.cudnn.benchmark = True
 
     # Create new logfile
-    log_path = create_path(Path(LOG_DIR), filename, ".log")
-    log = Logger(LOGGER_TRAIN + "-" + filename, log_path, logging.DEBUG, logging.DEBUG)
+    log_path = create_path(Path(config.LOG_DIR), filename, ".log")
+    log = Logger(
+        config.LOGGER_TRAIN + "-" + filename, log_path, logging.DEBUG, logging.DEBUG
+    )
 
     # Use cuda if available
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -99,41 +100,45 @@ def model_selection(filename: str, network: nn.Module):
 
     ##### Load Datasets #####
 
-    # Load datasets via DatasetWrapper
-    DW = DatasetWrapper()
-    DS_train_loader = DW.get_train_loader()
-    DS_val_loader = DW.get_val_loader()
-    DS_test_loader = DW.get_test_loader()
-
-    DS_train = DW.get_train_ds()
-    DS_val = DW.get_val_ds()
-    DS_test = DW.get_test_ds()
+    # Load datasets via DatasetManager
+    DM = DatasetManager()
+    # Load Train
+    DS_train_loader = DM.load_dataset(**config.DESED_SYNTH_TRAIN_ARGS)
+    DS_train = DM.get_dataset(config.DESED_SYNTH_TRAIN_ARGS["name"])
+    # Load Validation
+    DS_val_loader = DM.load_dataset(**config.DESED_SYNTH_VAL_ARGS)
+    DS_val = DM.get_dataset(config.DESED_SYNTH_VAL_ARGS["name"])
+    # Load Test
+    DS_test_loader = DM.load_dataset(**config.DESED_PUBLIC_EVAL_ARGS)
+    DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
 
     len_tr = len(DS_train)
     len_val = len(DS_val)
     len_te = len(DS_test)
 
     # Prerequisite: All datasets have the same sample rate.
-    sample_rate = DW.get_train_ds().get_sample_rate()
+    sample_rate = DS_train.get_sample_rate()
 
     ##### Declare Model #####
     # Network
-    model = network(sample_rate, SAMPLE_RATE).to(device, non_blocking=True)
-    # summary(model, input_size=(8, 1, 441000), device=device)
+    model = network(sample_rate, config.SAMPLE_RATE).to(device, non_blocking=True)
+    # summary(model, input_size=(config.BATCH_SIZE, 1, CLIP_LEN_SECONDS * SAMPLE_RATE), device=device)
 
     # Loss function
     criterion = nn.BCELoss()
 
     # optimizer = optim.Adam(model.parameters(), lr=LR_adam, weight_decay=WD)
-    optimizer = optim.SGD(model.parameters(), lr=LR_sgd, momentum=MOMENTUM)
+    optimizer = optim.SGD(
+        model.parameters(), lr=config.LR_sgd, momentum=config.MOMENTUM
+    )
 
     # Schedulers for updating learning rate
-    scheduler1 = ExponentialLR(optimizer, gamma=GAMMA_1)
+    scheduler1 = ExponentialLR(optimizer, gamma=config.GAMMA_1)
 
     start_epoch = 1
     # Model Paths for saving model during training
-    model_path = create_path(Path(SAVED_MODELS_DIR), filename)
-    best_model_path = create_path(Path(SAVED_MODELS_DIR), filename, best=True)
+    model_path = create_path(Path(config.SAVED_MODELS_DIR), filename)
+    best_model_path = create_path(Path(config.SAVED_MODELS_DIR), filename, best=True)
     # Define model_save dict that is mutable and updated in train()
     model_save = {
         "model_path": model_path,

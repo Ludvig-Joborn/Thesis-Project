@@ -2,12 +2,11 @@ import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from psds_eval import PSDSEval  # , PSDS
 from typing import List, Dict, Union, Tuple
 
 # User defined imports
-from config import *
+import config
 from models.model_utils import activation
 
 
@@ -28,7 +27,7 @@ def get_detection_table(
     file_ids = file_ids.tolist()  # Creates a list on cpu
 
     # Iterate over operating points to add predictions to each operating point table
-    for op in tqdm(OPERATING_POINTS, desc="Generating detection intervals"):
+    for op in tqdm(config.OPERATING_POINTS, desc="Generating detection intervals"):
         detections = []
         for i, out_row in enumerate(output_table):
             out_act = activation(out_row, op)
@@ -69,7 +68,7 @@ def frames_to_intervals(
     outputs = []
     activity = []
     detecting_speech = False
-    intervals = np.linspace(0, CLIP_LEN_SECONDS, len(input))
+    intervals = np.linspace(0, config.CLIP_LEN_SECONDS, len(input))
     for i in range(len(intervals)):
         if input[i] == 1:
             if not detecting_speech:
@@ -117,11 +116,11 @@ def psd_score(
 
     # Meta data neccessary for PSDS
     meta_table = pd.DataFrame(gt_table.loc[:, "filename"])
-    meta_table["duration"] = CLIP_LEN_SECONDS
+    meta_table["duration"] = config.CLIP_LEN_SECONDS
 
     # Create PSDSEval object
     psds_eval = PSDSEval(
-        **PSDS_PARAMS,
+        **config.PSDS_PARAMS,
         ground_truth=gt_table,
         metadata=meta_table,
     )
@@ -129,15 +128,15 @@ def psd_score(
     psds_eval.clear_all_operating_points()
 
     # Add operating points to PSDSEval object
-    for i, op in enumerate(OPERATING_POINTS):
+    for i, op in enumerate(config.OPERATING_POINTS):
         info = {"name": f"Op {i + 1}", "threshold": op}
         psds_eval.add_operating_point(op_tables[op], info=info)
 
     # Get results
     psds = psds_eval.psds(
-        PSDS_PARAMS["alpha_ct"],
-        PSDS_PARAMS["alpha_st"],
-        PSDS_PARAMS["max_efpr"],
+        config.PSDS_PARAMS["alpha_ct"],
+        config.PSDS_PARAMS["alpha_st"],
+        config.PSDS_PARAMS["max_efpr"],
     )
 
     # Get F1-Score
@@ -151,7 +150,7 @@ def psd_score(
         ]
     )
     op_with_highest_fscore = psds_eval.select_operating_points_per_class(
-        cc, alpha_ct=PSDS_PARAMS["alpha_ct"]
+        cc, alpha_ct=config.PSDS_PARAMS["alpha_ct"]
     )
 
     return psds, op_with_highest_fscore

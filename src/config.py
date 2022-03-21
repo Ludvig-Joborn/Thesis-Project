@@ -6,11 +6,26 @@ from pathlib import Path
 import numpy as np
 import math
 
+# Dataset classes
+import datasets.desed as desed
 
 ### Train model with deterministic behaviour ###
 # A deterministic run might take longer
 SEED = 42069
 DETERMINISTIC_RUN = False
+
+
+##############
+### MODELS ###
+##############
+EPOCHS = 30
+BATCH_SIZE = 32
+
+ACT_THRESHOLD = 0.5
+
+### Save & Load Model ###
+CONTINUE_TRAINING = False
+LOAD_MODEL_PATH = Path("E:/saved_models/s1/baseline_s1.pt")
 
 
 ################
@@ -23,48 +38,81 @@ NR_CLASSES = 1
 PIN_MEMORY = True
 
 ### DESED ###
-# Clip length of audio files
-DESED_CLIP_LEN_SECONDS = CLIP_LEN_SECONDS
-
 # Train Dataset - Synthetic
-TRAIN_DESED_NAME = "DESED Synthetic Training"
-NUM_WORKERS_TRAIN_DESED = 0
 PATH_TO_SYNTH_TRAIN_DESED_TSV = Path(
     "E:/Datasets/desed_zenodo/V3/dcase21_synth/metadata/train/synhtetic21_train/soundscapes.tsv"
 )
 PATH_TO_SYNTH_TRAIN_DESED_WAVS = Path(
     "E:/Datasets/desed_zenodo/V3/dcase21_synth/audio/train/synthetic21_train/soundscapes"
 )
+DESED_SYNTH_TRAIN_ARGS = {
+    "name": "DESED Synthetic Training",
+    "DS": desed.DESED_Strong,
+    "path_annotations": PATH_TO_SYNTH_TRAIN_DESED_TSV,
+    "path_audio": PATH_TO_SYNTH_TRAIN_DESED_WAVS,
+    "clip_len": CLIP_LEN_SECONDS,
+    "NUM_WORKERS": 0,
+    "PIN_MEMORY": PIN_MEMORY,
+    "batch_size": BATCH_SIZE,
+    "shuffle": True,
+}
 
 # Validation Dataset - Synthetic
-VAL_DESED_NAME = "DESED Synthetic Validation"
-NUM_WORKERS_VAL_DESED = 0
 PATH_TO_SYNTH_VAL_DESED_TSV = Path(
     "E:/Datasets/desed_zenodo/V3/dcase21_synth/metadata/validation/synhtetic21_validation/soundscapes.tsv"
 )
 PATH_TO_SYNTH_VAL_DESED_WAVS = Path(
     "E:/Datasets/desed_zenodo/V3/dcase21_synth/audio/validation/synthetic21_validation/soundscapes"
 )
+DESED_SYNTH_VAL_ARGS = {
+    "name": "DESED Synthetic Validation",
+    "DS": desed.DESED_Strong,
+    "path_annotations": PATH_TO_SYNTH_VAL_DESED_TSV,
+    "path_audio": PATH_TO_SYNTH_VAL_DESED_WAVS,
+    "clip_len": CLIP_LEN_SECONDS,
+    "NUM_WORKERS": 0,
+    "PIN_MEMORY": PIN_MEMORY,
+    "batch_size": BATCH_SIZE,
+    "shuffle": True,
+}
 
 # Test Dataset - Public Eval
-TEST_DESED_NAME = "DESED Public Eval"
-NUM_WORKERS_TEST_DESED = 0 if DETERMINISTIC_RUN else 2
-PATH_TO_PUBLIC_TEST_DESED_TSV = Path(
+PATH_TO_PUBLIC_EVAL_DESED_TSV = Path(
     "E:/Datasets/desed_zenodo/DESEDpublic_eval/dataset/metadata/eval/public.tsv"
 )
-PATH_TO_PUBLIC_TEST_DESED_WAVS = Path(
+PATH_TO_PUBLIC_EVAL_DESED_WAVS = Path(
     "E:/Datasets/desed_zenodo/DESEDpublic_eval/dataset/audio/eval/public"
 )
+DESED_PUBLIC_EVAL_ARGS = {
+    "name": "DESED Public Eval",
+    "DS": desed.DESED_Strong,
+    "path_annotations": PATH_TO_PUBLIC_EVAL_DESED_TSV,
+    "path_audio": PATH_TO_PUBLIC_EVAL_DESED_WAVS,
+    "clip_len": CLIP_LEN_SECONDS,
+    "NUM_WORKERS": 0 if DETERMINISTIC_RUN else 2,
+    "PIN_MEMORY": PIN_MEMORY,
+    "batch_size": BATCH_SIZE,
+    "shuffle": True,
+}
 
 # Dataset - Desed Real
-DESED_REAL_NAME = "DESED Real"
-NUM_WORKERS_DESED_REAL = 0
 PATH_TO_DESED_REAL_TSV = Path(
     "E:/Datasets/DESED_REAL_DOWNLOAD/DESED/real/metadata/validation/validation.tsv"
 )
 PATH_TO_DESED_REAL_WAVS = Path(
     "E:/Datasets/DESED_REAL_DOWNLOAD/DESED/real/audio/validation"
 )
+DESED_REAL_ARGS = {
+    "name": "DESED Real",
+    "DS": desed.DESED_Strong,
+    "path_annotations": PATH_TO_DESED_REAL_TSV,
+    "path_audio": PATH_TO_DESED_REAL_WAVS,
+    "clip_len": CLIP_LEN_SECONDS,
+    "NUM_WORKERS": 0,
+    "PIN_MEMORY": PIN_MEMORY,
+    "batch_size": BATCH_SIZE,
+    "shuffle": True,
+}
 
 ######################
 ### MELSPECTROGRAM ###
@@ -98,19 +146,6 @@ PARAMS_TO_MELSPEC = {
     "trainable_STFT": False,
     "verbose": False,
 }
-
-##############
-### MODELS ###
-##############
-EPOCHS = 30
-BATCH_SIZE = 32
-
-ACT_THRESHOLD = 0.5
-
-### Save & Load Model ###
-CONTINUE_TRAINING = False
-LOAD_MODEL_PATH = Path("E:/saved_models/s1/baseline_s1.pt")
-
 
 ################
 ### TRAINING ###

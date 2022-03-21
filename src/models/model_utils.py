@@ -1,11 +1,8 @@
 import torch
-from torch import nn, threshold
+from torch import nn
 from typing import Dict, Tuple
 from pathlib import Path
 from enum import Enum
-
-# User defined imports
-from config import ACT_THRESHOLD
 
 
 def nr_parameters(model) -> int:

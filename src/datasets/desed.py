@@ -8,7 +8,7 @@ import random
 
 # User defined imports
 from datasets.datasets_utils import *
-from config import DETERMINISTIC_RUN
+import config
 
 
 class DESED_Strong(Dataset):
@@ -21,7 +21,7 @@ class DESED_Strong(Dataset):
         self.filenames = get_wav_filenames(self.wav_dir)
         self.clip_len_seconds = clip_len_seconds
 
-        if DETERMINISTIC_RUN:
+        if config.DETERMINISTIC_RUN:
             random.shuffle(self.filenames)
 
     def __len__(self) -> int:
