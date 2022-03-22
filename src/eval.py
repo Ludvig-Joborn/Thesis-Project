@@ -8,7 +8,7 @@ import logging
 # User defined imports
 import config
 from utils import *
-from psds_utils import *
+from plot_utils import *
 from psds_eval import plot_psd_roc
 from models.model_utils import *
 from logger import CustomLogger as Logger
@@ -146,6 +146,11 @@ if __name__ == "__main__":
     DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
     len_te = len(DS_test)
 
+<<<<<<< HEAD
+=======
+    # Prerequisite: All sample rates within a dataset must be equal (or resampled
+    # at dataset level) but may differ between datasets..
+>>>>>>> b9279a9 (refactor: imports and comments)
     sample_rates = set()
     sample_rates.add(DS_test.get_sample_rate())
 
