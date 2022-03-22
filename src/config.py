@@ -8,6 +8,7 @@ import math
 
 # Dataset classes
 import datasets.desed as desed
+import datasets.custom_unlabeled as custom_ds
 
 ### Train model with deterministic behaviour ###
 # A deterministic run might take longer
@@ -116,6 +117,20 @@ DESED_REAL_ARGS = {
     "shuffle": True,
 }
 
+# Dataset - independent wav-files.
+PATH_TO_CUSTOM_WAVS = Path("E:/Datasets/test_audio")
+CUSTOM_ARGS = {
+    "name": "Custom Dataset",
+    "DS": custom_ds.CustomUnlabeled,
+    "path_annotations": None,
+    "path_audio": PATH_TO_CUSTOM_WAVS,
+    "clip_len": CLIP_LEN_SECONDS,
+    "NUM_WORKERS": 0,
+    "PIN_MEMORY": PIN_MEMORY,
+    "batch_size": 1,
+    "shuffle": False,
+}
+
 ######################
 ### MELSPECTROGRAM ###
 ######################
@@ -189,10 +204,23 @@ PSDS_PARAMS = {
 }
 
 
+##################
+### PREDICTION ###
+##################
+
+LOG_PREDS = True
+SAVE_PREDS = True  # Creates tsv file with predictions
+
+# Prediction intervals smaller than this are joined together.
+# (applies *only* to predict.py)
+MIN_DETECTION_INTERVAL_SEC = 0.8
+
 ############
 ### MISC ###
 ############
 SAVED_MODELS_DIR = "E:/saved_models/"
 LOG_DIR = "logs/"
+PREDS_DIR = "E:/predictions/"
+
 LOGGER_TRAIN = "train-logger"
 LOGGER_TEST = "test-logger"
