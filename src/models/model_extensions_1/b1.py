@@ -17,10 +17,10 @@ Note: Works best with 'batch_size' = 64 (have not tried larger)
 
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
+    def __init__(self, input_sample_rates: set, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
 
-        self.pre_process = PreProcess(input_sample_rate, output_sample_rate)
+        self.pre_process = PreProcess(input_sample_rates, output_sample_rate)
 
         # CNN layers
         self.stem_1_32 = self.stem_block(1, 32, 7)
@@ -79,8 +79,8 @@ class NeuralNetwork(nn.Module):
             nn.AvgPool2d(kernel_size=(2, 1), stride=(2, 1)),
         )
 
-    def forward(self, waveform: torch.Tensor):
-        mel_spec = self.pre_process(waveform)
+    def forward(self, waveform: torch.Tensor, sample_rate: torch.Tensor):
+        mel_spec = self.pre_process(waveform, sample_rate)
 
         ############################
         # Stem blocks

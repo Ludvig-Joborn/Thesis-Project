@@ -18,10 +18,10 @@ https://dcase.community/documents/challenge2021/technical_reports/DCASE2021_Park
 
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
+    def __init__(self, input_sample_rates: set, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
 
-        self.pre_process = PreProcess(input_sample_rate, output_sample_rate)
+        self.pre_process = PreProcess(input_sample_rates, output_sample_rate)
 
         kernel_size1 = (3, 3)
         kernel_size2 = (3, 3)
@@ -176,8 +176,8 @@ class NeuralNetwork(nn.Module):
 
         self.sigm = nn.Sigmoid()
 
-    def forward(self, waveform: torch.Tensor):
-        mel_spec = self.pre_process(waveform)
+    def forward(self, waveform: torch.Tensor, sample_rate: torch.Tensor):
+        mel_spec = self.pre_process(waveform, sample_rate)
 
         mconv1 = self.mul_conv_1(mel_spec)
         conv1 = self.conv1(mconv1)

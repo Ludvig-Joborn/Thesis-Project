@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
+from torch.optim.lr_scheduler import ExponentialLR
 
 # User defined imports
 import logging
@@ -16,6 +16,7 @@ from datasets.dataset_handler import DatasetManager
 # Baseline, basic
 from models.model_extensions_1.basic_nn import NeuralNetwork as basic_nn
 from models.baseline import NeuralNetwork as baseline
+from models.improved_baseline import NeuralNetwork as improved_baseline
 
 # b2
 from models.model_extensions_1.b2 import NeuralNetwork as b2
@@ -117,11 +118,14 @@ def model_selection(filename: str, network: nn.Module):
     len_te = len(DS_test)
 
     # Prerequisite: All datasets have the same sample rate.
-    sample_rate = DS_train.get_sample_rate()
+    sample_rates = set()
+    sample_rates.add(DS_train.get_sample_rate())
+    sample_rates.add(DS_val.get_sample_rate())
+    sample_rates.add(DS_test.get_sample_rate())
 
     ##### Declare Model #####
     # Network
-    model = network(sample_rate, config.SAMPLE_RATE).to(device, non_blocking=True)
+    model = network(sample_rates, config.SAMPLE_RATE).to(device, non_blocking=True)
     # summary(model, input_size=(config.BATCH_SIZE, 1, CLIP_LEN_SECONDS * SAMPLE_RATE), device=device)
 
     # Loss function

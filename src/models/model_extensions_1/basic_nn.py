@@ -7,10 +7,10 @@ from models.preprocess import PreProcess
 
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
+    def __init__(self, input_sample_rates: set, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
 
-        self.pre_process = PreProcess(input_sample_rate, output_sample_rate)
+        self.pre_process = PreProcess(input_sample_rates, output_sample_rate)
 
         # CNN layer
         self.conv1 = nn.Conv2d(
@@ -73,8 +73,8 @@ class NeuralNetwork(nn.Module):
 
         self.sigm = nn.Sigmoid()
 
-    def forward(self, waveform: torch.Tensor):
-        mel_spec = self.pre_process(waveform)
+    def forward(self, waveform: torch.Tensor, sample_rate: torch.Tensor):
+        mel_spec = self.pre_process(waveform, sample_rate)
 
         conv1 = self.conv1(mel_spec)
         glu1 = self.glu1(conv1)

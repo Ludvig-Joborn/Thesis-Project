@@ -60,14 +60,14 @@ def te_val_batches(
     with torch.no_grad():
         desc = "Test Batch progress:" if testing else "Valdiation Batch progress:"
         for i, sample in enumerate(tqdm(iterable=data_loader, desc=desc)):
-            waveform, labels, file_id = sample
+            waveform, sample_rate, labels, file_id = sample
 
             # Send parameters to device
             waveform = waveform.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
 
             # forward + loss
-            outputs = model.forward(waveform)
+            outputs = model.forward(waveform, sample_rate)
             loss = criterion(outputs, labels)
 
             # Track loss statistics
@@ -147,12 +147,13 @@ if __name__ == "__main__":
     len_te = len(DS_test)
 
     # Prerequisite: All datasets have the same sample rate.
-    sample_rate = DS_test.get_sample_rate()
+    sample_rates = set()
+    sample_rates.add(DS_test.get_sample_rate())
 
     ### Declare Model ###
 
     # Network
-    model = NN(sample_rate, config.SAMPLE_RATE).to(device, non_blocking=True)
+    model = NN(sample_rates, config.SAMPLE_RATE).to(device, non_blocking=True)
     # summary(model, input_size=(BATCH_SIZE, 1, 10 * sample_rate), device=device)
 
     # Loss function

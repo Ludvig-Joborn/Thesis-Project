@@ -7,27 +7,51 @@ import julius
 from config import PARAMS_TO_MELSPEC, SAMPLE_RATE
 
 
-class PreProcess(nn.Module):
-    def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
-        super(PreProcess, self).__init__()
+class PreProcessMix(nn.Module):
+    def __init__(self, input_sample_rates: set, output_sample_rate: int = SAMPLE_RATE):
+        super(PreProcessMix, self).__init__()
 
-        # layer that downsamples the waveform to lower sample rate
-        self.resampler = julius.resample.ResampleFrac(
-            input_sample_rate, output_sample_rate
-        )
+        # Dict containing 'sample_rate: ResampleFrac' where each ResampleFrac
+        # has its own initialization for a specific input sample_rate
+        self.sr_resample_table = {}
+        for sr in input_sample_rates:
+            self.sr_resample_table[sr] = julius.resample.ResampleFrac(
+                sr, output_sample_rate
+            ).to("cuda")
 
         # layer that converts waveforms to log mel spectrograms
         self.spec_layer = MelSpectrogram(**PARAMS_TO_MELSPEC)
 
-    def __call__(self, waveform, lam=1, perm_index=None):
-        waveform_ds = self.resampler(waveform)
+    def __call__(
+        self,
+        waveform: torch.Tensor,
+        sample_rate: torch.Tensor,
+        lam: int = 1,
+        perm_index: torch.Tensor = None,
+    ):
+
+        first_sample_rate = sample_rate[0].tolist()  # CPU operation
+
+        # Check that all samples rates are equal
+        if (sample_rate != sample_rate[0]).any():
+            raise ValueError("Conflicting sample rates within the dataset")
+
+        if not first_sample_rate in self.sr_resample_table.keys():
+            raise ValueError(
+                f"Uninitialized sample rate {first_sample_rate} found in dataset"
+            )
+
+        waveform_ds = self.sr_resample_table[first_sample_rate](waveform)
+
         mel_spec = self.spec_layer(waveform_ds)
         # Should we apply mixup?
         if lam != 1 and perm_index is not None:
             mel_spec = self.mixup_data(mel_spec, lam, perm_index)
         return torch.unsqueeze(input=mel_spec, dim=1)
 
-    def mixup_data(self, mel_spec, lam, perm_index):
+    def mixup_data(
+        self, mel_spec: torch.Tensor, lam: int, perm_index: torch.Tensor
+    ) -> torch.Tensor:
         # Create a mixed input
         mixed_melspec = lam * mel_spec + (1 - lam) * mel_spec[perm_index, :]
         return mixed_melspec

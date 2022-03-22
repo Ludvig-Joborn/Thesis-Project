@@ -14,6 +14,7 @@ from models.model_utils import *
 from logger import CustomLogger as Logger
 from datasets.dataset_handler import DatasetManager
 from models.baseline import NeuralNetwork as NN
+from models.improved_baseline import NeuralNetwork as NN
 
 
 # Use cuda if available, exit otherwise.
@@ -50,7 +51,7 @@ def train_batches(
     for i, sample in enumerate(
         tqdm(iterable=tr_loader, desc="Training Batch progress:")
     ):
-        waveform, labels, _ = sample
+        waveform, sample_rate, labels, _ = sample
 
         # Send parameters to device
         waveform = waveform.to(device, non_blocking=True)
@@ -60,7 +61,7 @@ def train_batches(
         optimizer.zero_grad()
 
         # forward + loss + backward + optimize
-        outputs = model.forward(waveform)
+        outputs = model.forward(waveform, sample_rate)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -228,12 +229,15 @@ if __name__ == "__main__":
     len_te = len(DS_test)
 
     # Prerequisite: All datasets have the same sample rate.
-    sample_rate = DS_train.get_sample_rate()
+    sample_rates = set()
+    sample_rates.add(DS_train.get_sample_rate())
+    sample_rates.add(DS_val.get_sample_rate())
+    sample_rates.add(DS_test.get_sample_rate())
 
     ### Declare Model ###
 
     # Network
-    model = NN(sample_rate, config.SAMPLE_RATE).to(device, non_blocking=True)
+    model = NN(sample_rates, config.SAMPLE_RATE).to(device, non_blocking=True)
 
     # Loss function
     criterion = nn.BCELoss()

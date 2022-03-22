@@ -3,10 +3,9 @@ from torch import nn
 
 # User defined imports
 from config import SAMPLE_RATE
-from models.preprocess_mixup import PreProcess
+from models.preprocess_mixup import PreProcessMix
 from models.r_conv import R_Conv_cbam_avg_pool
 from models.conv_block import ConvBlock, ACT
-from typing import List
 
 CNN_DROPOUT = 0.1
 
@@ -17,10 +16,10 @@ https://dcase.community/documents/challenge2021/technical_reports/DCASE2021_Park
 
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, input_sample_rate: int, output_sample_rate: int = SAMPLE_RATE):
+    def __init__(self, input_sample_rates: set, output_sample_rate: int = SAMPLE_RATE):
         super(NeuralNetwork, self).__init__()
 
-        self.pre_process = PreProcess(input_sample_rate, output_sample_rate)
+        self.pre_process_mix = PreProcessMix(input_sample_rates, output_sample_rate)
 
         # Batch Size, Kernels, Mel-bins, Frames
         # 8/32, 1, 128, 431/157
@@ -122,9 +121,13 @@ class NeuralNetwork(nn.Module):
         self.sigm = nn.Sigmoid()
 
     def forward(
-        self, waveform: torch.Tensor, lam: int = 1.0, perm_index: List[int] = None
+        self,
+        waveform: torch.Tensor,
+        sample_rate: torch.tensor,
+        lam: int = 1.0,
+        perm_index: torch.Tensor = None,
     ):
-        mel_spec = self.pre_process(waveform, lam, perm_index)
+        mel_spec = self.pre_process_mix(waveform, sample_rate, lam, perm_index)
 
         conv1 = self.conv1(mel_spec)
         conv2 = self.conv2(conv1)

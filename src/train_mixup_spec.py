@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 from tqdm import tqdm
 import torch.optim as optim
-from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
+from torch.optim.lr_scheduler import ExponentialLR
 from typing import Tuple
 from torch.autograd import Variable
 import numpy as np
@@ -83,7 +83,7 @@ def train_batches(
     for i, sample in enumerate(
         tqdm(iterable=tr_loader, desc="Training Batch progress:")
     ):
-        waveform, labels, _ = sample
+        waveform, sample_rate, labels, _ = sample
 
         # Send parameters to device
         waveform = waveform.to(device, non_blocking=True)
@@ -97,7 +97,7 @@ def train_batches(
         optimizer.zero_grad()
 
         # forward + loss + backward + optimize
-        outputs = model.forward(waveform, lam, perm_index)
+        outputs = model.forward(waveform, sample_rate, lam, perm_index)
         loss = mixup_criterion(criterion, outputs, labels, labels_permuted, lam)
         loss.backward()
         optimizer.step()
@@ -258,12 +258,15 @@ if __name__ == "__main__":
     len_te = len(DS_test)
 
     # Prerequisite: All datasets have the same sample rate.
-    sample_rate = DS_train.get_sample_rate()
+    sample_rates = set()
+    sample_rates.add(DS_train.get_sample_rate())
+    sample_rates.add(DS_val.get_sample_rate())
+    sample_rates.add(DS_test.get_sample_rate())
 
     ### Declare Model ###
 
     # Network
-    model = NN(sample_rate, config.SAMPLE_RATE).to(device, non_blocking=True)
+    model = NN(sample_rates, config.SAMPLE_RATE).to(device, non_blocking=True)
 
     # Loss function
     criterion = nn.BCELoss()
