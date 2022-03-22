@@ -1,8 +1,8 @@
-from msilib.schema import Error
 import torch
 from torch import nn
 from nnAudio.features.mel import MelSpectrogram
 import julius
+from collections import OrderedDict
 
 # User defined imports
 from config import PARAMS_TO_MELSPEC, SAMPLE_RATE
@@ -14,7 +14,7 @@ class PreProcess(nn.Module):
 
         # Dict containing 'sample_rate: ResampleFrac' where each ResampleFrac
         # has its own initialization for a specific input sample_rate
-        self.sr_resample_table = {}
+        self.sr_resample_table = OrderedDict()
         for sr in input_sample_rates:
             self.sr_resample_table[sr] = julius.resample.ResampleFrac(
                 sr, output_sample_rate

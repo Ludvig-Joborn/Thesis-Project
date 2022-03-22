@@ -1,68 +1,15 @@
 import torch
-import torchaudio.transforms as T
-import matplotlib.pyplot as plt
-import librosa
-from datetime import datetime
-from typing import Callable, List
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from psds_eval import PSDSEval
 from pathlib import Path
+from datetime import datetime
+from typing import List, Dict, Union, Tuple
 
-from config import EPOCHS
-
-
-def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
-    fig, axs = plt.subplots(1, 1)
-    axs.set_title(title or "Spectrogram (db)")
-    axs.set_ylabel(ylabel)
-    axs.set_xlabel("frame")
-    im = axs.imshow(librosa.power_to_db(spec), origin="lower", aspect=aspect)
-    if xmax:
-        axs.set_xlim((0, xmax))
-    fig.colorbar(im, ax=axs)
-    plt.show(block=True)
-
-
-def plot_waveform(waveform, sample_rate, title="Waveform", xlim=None, ylim=None):
-    waveform = waveform.numpy()
-
-    num_channels, num_frames = waveform.shape
-    time_axis = torch.arange(0, num_frames) / sample_rate
-
-    figure, axes = plt.subplots(num_channels, 1)
-    if num_channels == 1:
-        axes = [axes]
-    for c in range(num_channels):
-        axes[c].plot(time_axis, waveform[c], linewidth=1)
-        axes[c].grid(True)
-        if num_channels > 1:
-            axes[c].set_ylabel(f"Channel {c+1}")
-        if xlim:
-            axes[c].set_xlim(xlim)
-        if ylim:
-            axes[c].set_ylim(ylim)
-    figure.suptitle(title)
-    plt.show(block=True)
-
-
-def get_mel_spectrogram(
-    sample_rate: int, n_fft: int, win_length: int, hop_length: int, n_mels: int
-) -> Callable:
-    """
-    Returns a function that takes a waveform and returns a mel spectrogram.
-    """
-    mel_spectrogram = T.MelSpectrogram(
-        sample_rate=sample_rate,
-        n_fft=n_fft,
-        win_length=win_length,
-        hop_length=hop_length,
-        center=True,
-        pad_mode="reflect",
-        power=2.0,
-        norm="slaney",
-        onesided=True,
-        n_mels=n_mels,
-        mel_scale="htk",
-    )
-    return mel_spectrogram
+# User defined imports
+import config
+from models.model_utils import activation
 
 
 def get_datetime() -> str:
@@ -84,90 +31,232 @@ def create_path(
     return path
 
 
-def plot_tr_val_acc_loss(
-    tr_losses: List[float],
-    tr_accs: List[float],
-    val_losses: List[float],
-    val_accs: List[float],
+def get_detection_table(
+    output_table: torch.Tensor,
+    file_ids: torch.Tensor,
+    dataset,
+) -> Dict[float, pd.DataFrame]:
+    """
+    Used when calculating PSD-Score.
+    Calculates detection (speech) intervals on the CPU and returns a dictionary
+    with detections for each operating point.
+    """
+    # Dictionary containing detections (pandas DataFrames)
+    op_tables = {}
+
+    # Send to CPU
+    output_table = output_table.to(device="cpu", non_blocking=True)
+    file_ids = file_ids.tolist()  # Creates a list on cpu
+
+    # Iterate over operating points to add predictions to each operating point table
+    for op in tqdm(config.OPERATING_POINTS, desc="Generating detection intervals"):
+        detections = []
+        for i, out_row in enumerate(output_table):
+            out_act = activation(out_row, op)
+            filename = dataset.filename(
+                int(file_ids[i])
+            )  # Get filename from file index
+            detection_intervals = frames_to_intervals(out_act, filename)
+            for speech_row in detection_intervals:
+                detections.append(speech_row)
+
+        # Add detections (as pandas DataFrame) to op_tables
+        cols = ["event_label", "onset", "offset", "filename"]
+        op_tables[op] = pd.DataFrame(detections, columns=cols)
+
+    return op_tables
+
+
+def get_detections(
+    outputs: torch.tensor,
+    file_ids: torch.Tensor,
+    activation_threshold: float,
+) -> List[List[Union[str, float, float, str]]]:
+    """
+    Used to get predictions.
+    Creates and returns a list with detections (speech) intervals on the CPU for a
+    given operating point.
+    """
+    detections = []
+    for i, out_row in enumerate(outputs):
+        out_act = activation(out_row, activation_threshold)
+        filename = str(int(file_ids[i]))  # Filename is an index
+        detection_intervals = frames_to_intervals(out_act, filename)
+        for speech_row in detection_intervals:
+            detections.append(speech_row)
+    return detections
+
+
+def frames_to_intervals(
+    input: torch.Tensor, filename: str
+) -> List[List[Union[str, float, float, str]]]:
+    """
+    Converts frame-wise output into time-intervals
+    for each row where speech is detected.
+    The return format is the following::
+
+    ```
+        [["event_label", "onset", "offset", "filename"], ...]
+    ```
+    For example::
+
+    ```
+    [
+        ["Speech", 0.2, 5.6, "audio_file1.wav"],  # Speech detection 1
+        ["Speech", 7.3, 10.0, "audio_file2.wav"],  # Speech detection 2
+        ...
+    ]
+    ```
+    """
+    outputs = []
+    activity = []
+    detecting_speech = False
+    intervals = np.linspace(0, config.CLIP_LEN_SECONDS, len(input))
+    for i in range(len(intervals)):
+        if input[i] == 1:
+            if not detecting_speech:
+                detecting_speech = True
+                activity.append("Speech")
+                activity.append(intervals[i])  # Start speech interval
+        if input[i] == 0:
+            if detecting_speech:
+                detecting_speech = False
+                activity.append(intervals[i - 1])  # End speech interval
+                activity.append(filename)
+                outputs.append(activity)
+                activity = []
+
+    if detecting_speech:  # Catch cases where the final frame contains speech.
+        activity.append(intervals[i])
+        activity.append(filename)
+        outputs.append(activity)
+
+    return outputs
+
+
+def join_predictions(
+    preds: List[List[Union[str, float, float, str]]], dataset
+) -> List[List[Union[str, float, float, str]]]:
+    """
+    Modifies input predictions such concurrent rows with the same filename
+    have their time-intervals specified in terms of the original file's timestamps.
+    Also joins input predictions with overlapping boundaries.
+
+    Example::
+    ```
+        [["Speech", 7.450, 10., "some_filename"], ["Speech", 0., 2.312, "some_filename"]]
+            -->   [["Speech", 7.450, 12.312, "some_filename"]]
+    ```
+    """
+    preds_updated = []
+    # Loop all predictions
+    for i in range(len(preds)):
+        curr_row = preds[i]
+        filename, file_id, seg_id = dataset.get_file_seg_ids(int(curr_row[3]))
+        new_row = [  # Modify curr_row
+            curr_row[0],
+            curr_row[1] + config.CLIP_LEN_SECONDS * seg_id,
+            curr_row[2] + config.CLIP_LEN_SECONDS * seg_id,
+            filename,
+        ]
+        preds_updated.append(new_row)
+
+    preds_joined = []
+    i = 0
+    while i < len(preds_updated):
+        # Join predictions with same filename and overlapping end+start timestamps.
+        curr_row = preds_updated[i]
+        while (
+            i + 1 < len(preds_updated)
+            and preds_updated[i + 1][1] - curr_row[2]
+            < config.MIN_DETECTION_INTERVAL_SEC
+        ):  # Check if current row ends where next starts; If so, join them.
+            curr_row = [
+                curr_row[0],
+                curr_row[1],
+                preds_updated[i + 1][2],
+                curr_row[3],
+            ]
+            i += 1  # Skip next row.
+        preds_joined.append(curr_row)
+        i += 1
+    return preds_joined
+
+
+def preds_to_tsv(
+    preds: pd.DataFrame,
+    preds_dir: str,
+    path_to_audio: Path,
 ):
     """
-    Plots the training and validation accuracy and loss.
+    Save predictions to tsv file.
     """
-    plt.style.use("ggplot")
-
-    x = range(1, len(tr_losses) + 1)
-
-    # Parameters for plotting
-    c_tr = "m"
-    c_val = "c"
-    plot_params = {
-        "linestyle": "-",
-        "marker": "o",
-        "markersize": 4,
-    }
-
-    plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(x, tr_accs, color=c_tr, **plot_params, label="Training Acc")
-    plt.plot(x, val_accs, color=c_val, **plot_params, label="Validation Acc")
-    plt.ylabel("Accuracy")
-    plt.xlabel("Epoch")
-    plt.title("Training and Validation Accuracy")
-    plt.legend()
-    plt.subplot(1, 2, 2)
-    plt.plot(x, tr_losses, color=c_tr, **plot_params, label="Training Loss")
-    plt.plot(x, val_losses, color=c_val, **plot_params, label="Validation Loss")
-    plt.ylabel("Loss")
-    plt.xlabel("Epoch")
-    plt.title("Training and Validation Loss")
-    plt.legend()
-    plt.show()
+    audio_dir = path_to_audio.parts[-1]
+    filename = f"preds_{audio_dir}_{get_datetime()}"
+    path = create_path(dir=Path(preds_dir), filename=filename, ending=".tsv")
+    preds.to_csv(path, index=False, sep="\t")
 
 
-def plot_model_selection(model_saves):
+def psd_score(
+    op_tables: Dict[float, pd.DataFrame], annotations: pd.DataFrame
+) -> Tuple[object, pd.DataFrame]:
     """
-    Plots the training and validation accuracy and loss.
+    Calculate PSDS Score, F1-Score and plot a ROC-PSD curve if specified.
+
+    The input-dictionary 'op_tables' must contain an operating point (key),
+    and a pandas DataFrame with detections (value).
+
+    The format of the detections must have the following format::
+
+    ```
+    columns = ["event_label", "onset", "offset", "filename"]
+       (type: [str,           float,   float,    str       ])
+    ```
     """
+    # Ground Truth table
+    gt_table = annotations
 
-    plt.style.use("ggplot")
-    x = range(1, EPOCHS + 1)
+    # Keep only speech
+    gt_table = gt_table.loc[gt_table["event_label"] == "Speech"]
+    gt_table = gt_table.reset_index(drop=True)
 
-    # Parameters for plotting
-    plot_params = {
-        "linestyle": "-",
-        "marker": "o",
-        "markersize": 4,
-    }
+    # Meta data neccessary for PSDS
+    meta_table = pd.DataFrame(gt_table.loc[:, "filename"])
+    meta_table["duration"] = config.CLIP_LEN_SECONDS
 
-    plt.figure(figsize=(12, 6))
-    plt.subplot(2, 2, 1)
-    for key, model_save in model_saves.items():
-        plt.plot(x, model_save["tr_epoch_accs"][0:EPOCHS], **plot_params, label=key)
-    plt.ylabel("Accuracy")
-    plt.title("Training Accuracy")
-    plt.legend()
+    # Create PSDSEval object
+    psds_eval = PSDSEval(
+        **config.PSDS_PARAMS,
+        ground_truth=gt_table,
+        metadata=meta_table,
+    )
 
-    plt.subplot(2, 2, 2)
-    for key, model_save in model_saves.items():
-        plt.plot(x, model_save["tr_epoch_losses"][0:EPOCHS], **plot_params, label=key)
-    plt.ylabel("Loss")
-    plt.title("Training Loss")
-    plt.legend()
+    psds_eval.clear_all_operating_points()
 
-    plt.subplot(2, 2, 3)
-    for key, model_save in model_saves.items():
-        plt.plot(x, model_save["val_epoch_accs"][0:EPOCHS], **plot_params, label=key)
-    plt.ylabel("Accuracy")
-    plt.xlabel("Epoch")
-    plt.title("Validation Accuracy")
-    plt.legend()
+    # Add operating points to PSDSEval object
+    for i, op in enumerate(config.OPERATING_POINTS):
+        info = {"name": f"Op {i + 1}", "threshold": op}
+        psds_eval.add_operating_point(op_tables[op], info=info)
 
-    plt.subplot(2, 2, 4)
-    for key, model_save in model_saves.items():
-        plt.plot(x, model_save["val_epoch_losses"][0:EPOCHS], **plot_params, label=key)
-    plt.ylabel("Loss")
-    plt.xlabel("Epoch")
-    plt.title("Validation Loss")
-    plt.legend()
+    # Get results
+    psds = psds_eval.psds(
+        config.PSDS_PARAMS["alpha_ct"],
+        config.PSDS_PARAMS["alpha_st"],
+        config.PSDS_PARAMS["max_efpr"],
+    )
 
-    plt.show()
+    # Get F1-Score
+    cc = pd.DataFrame(
+        [
+            {
+                "class_name": psds_eval.class_names[0],
+                "constraint": "fscore",
+                "value": None,
+            }
+        ]
+    )
+    op_with_highest_fscore = psds_eval.select_operating_points_per_class(
+        cc, alpha_ct=config.PSDS_PARAMS["alpha_ct"]
+    )
+
+    return psds, op_with_highest_fscore
