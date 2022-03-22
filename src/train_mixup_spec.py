@@ -11,6 +11,7 @@ import numpy as np
 # User defined imports
 import config
 from utils import *
+from plot_utils import plot_tr_val_acc_loss
 from eval import te_val_batches, test
 from models.model_utils import *
 from datasets.datasets_utils import *
@@ -143,7 +144,7 @@ def train(
     # Used for saving the best model
     best_val_acc = model_save["best_val_acc"]
 
-    for epoch in range(start_epoch, EPOCHS + 1):
+    for epoch in range(start_epoch, config.EPOCHS + 1):
         log.info(f"Epoch {epoch}")
 
         ##### Model batch training #####
@@ -274,8 +275,8 @@ if __name__ == "__main__":
     len_val = len(DS_val)
     len_te = len(DS_test)
 
-    # Prerequisite: Datasets must have the same sample rate within its dataset
-    # (not between datasets)
+    # Prerequisite: All sample rates within a dataset must be equal (or resampled
+    # at dataset level) but may differ between datasets.
     sample_rates = set()
     sample_rates.add(DS_train.get_sample_rate())
     sample_rates.add(DS_val.get_sample_rate())

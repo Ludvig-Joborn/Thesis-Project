@@ -2,15 +2,17 @@ import torch
 from torch import nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
+from pathlib import Path
 
 # User defined imports
 import config
 import logging
-from utils import *
+import config
+from plot_utils import plot_model_selection
+from utils import create_path
 from train import train
 from eval import test
-from models.model_utils import *
-from datasets.datasets_utils import *
+from models.model_utils import nr_parameters, load_model
 from logger import CustomLogger as Logger
 from datasets.dataset_handler import DatasetManager
 
@@ -135,8 +137,8 @@ def model_selection(filename: str, network: nn.Module):
     len_val = len(DS_val)
     len_te = len(DS_test)
 
-    # Prerequisite: Datasets must have the same sample rate within its dataset
-    # (not between datasets)
+    # Prerequisite: All sample rates within a dataset must be equal (or resampled
+    # at dataset level) but may differ between datasets.
     sample_rates = set()
     sample_rates.add(DS_train.get_sample_rate())
     sample_rates.add(DS_val.get_sample_rate())
@@ -218,7 +220,7 @@ if __name__ == "__main__":
         model_saves[key] = model_save
         if len(model_save["tr_epoch_losses"]) < config.EPOCHS:
             exit(
-                f"ERROR: Pre-trained model {key} has not been sufficiently trained. Please train it to {EPOCHS} epochs."
+                f"ERROR: Pre-trained model {key} has not been sufficiently trained. Please train it to {config.EPOCHS} epochs."
             )
 
     # Initialize what models to run.
