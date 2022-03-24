@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
 # User defined imports
+import config
 import logging
 from utils import *
 from train import train
@@ -113,11 +114,29 @@ def model_selection(filename: str, network: nn.Module):
     DS_test_loader = DM.load_dataset(**config.DESED_PUBLIC_EVAL_ARGS)
     DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
 
+    if config.USE_CONCAT_VAL:
+        import datasets.concat_datasets as cd
+
+        # Load Validation 2 - DESED Real
+        _ = DM.load_dataset(**config.DESED_REAL_ARGS)
+        DS_real = DM.get_dataset(config.DESED_REAL_ARGS["name"])
+
+        datasets = [DS_val, DS_real]
+        DS_val = cd.ConcatDataset(datasets)
+        DS_val_loader = torch.utils.data.DataLoader(
+            DS_val,
+            batch_size=config.BATCH_SIZE,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=config.PIN_MEMORY,
+        )
+
     len_tr = len(DS_train)
     len_val = len(DS_val)
     len_te = len(DS_test)
 
-    # Prerequisite: All datasets have the same sample rate.
+    # Prerequisite: Datasets must have the same sample rate within its dataset
+    # (not between datasets)
     sample_rates = set()
     sample_rates.add(DS_train.get_sample_rate())
     sample_rates.add(DS_val.get_sample_rate())
@@ -191,14 +210,13 @@ if __name__ == "__main__":
     # Load pre trained models and add to dict
     trained_modules = {
         "baseline": load_model(Path("E:/saved_models/baseline.pt"))["model_save"],
-        "b1_cbam": load_model(Path("E:/saved_models/b1_cbam.pt"))["model_save"],
-        "b1_cbam_drop01": load_model(Path("E:/saved_models/b1_cbam_drop01.pt"))[
+        "improved_baseline": load_model(Path("E:/saved_models/improved_baseline.pt"))[
             "model_save"
         ],
     }
     for key, model_save in trained_modules.items():
         model_saves[key] = model_save
-        if len(model_save["tr_epoch_losses"]) < EPOCHS:
+        if len(model_save["tr_epoch_losses"]) < config.EPOCHS:
             exit(
                 f"ERROR: Pre-trained model {key} has not been sufficiently trained. Please train it to {EPOCHS} epochs."
             )
@@ -233,6 +251,10 @@ if __name__ == "__main__":
         # Activation function Swish
         # "swish": swish,
         # "swish_tr": swish_tr,
+        #
+        # Baselines
+        "baseline_synth_real_val": baseline,
+        "improved_baseline_synth_real_val": improved_baseline,
     }
 
     # Train each model and store the 'model_save'

@@ -11,8 +11,8 @@ import datasets.desed as desed
 
 ### Train model with deterministic behaviour ###
 # A deterministic run might take longer
-SEED = 42069
-DETERMINISTIC_RUN = False
+SEED = 12345
+DETERMINISTIC_RUN = True
 
 
 ##############
@@ -25,7 +25,7 @@ ACT_THRESHOLD = 0.5
 
 ### Save & Load Model ###
 CONTINUE_TRAINING = False
-LOAD_MODEL_PATH = Path("E:/saved_models/s1/baseline_s1.pt")
+LOAD_MODEL_PATH = Path("E:/saved_models/improved_baseline.pt")
 
 
 ################
@@ -96,6 +96,8 @@ DESED_PUBLIC_EVAL_ARGS = {
 }
 
 # Dataset - Desed Real
+USE_CONCAT_VAL = True  # Concatinates synth val and real as new validation set
+
 PATH_TO_DESED_REAL_TSV = Path(
     "E:/Datasets/DESED_REAL_DOWNLOAD/DESED/real/metadata/validation/validation.tsv"
 )
@@ -156,15 +158,11 @@ LR_adam = 0.01
 WD = 0.0001
 
 ### Optimizer SGD ###
-LR_sgd = 0.05
-MOMENTUM = 0.9
+LR_sgd = 0.03
+MOMENTUM = 0.8
 
 ### Scheduler 1 ###
 GAMMA_1 = 0.9
-
-### Scheduler 2 ###
-GAMMA_2 = 0.1
-MILESTONES = [15, 40, 75]
 
 
 ##################

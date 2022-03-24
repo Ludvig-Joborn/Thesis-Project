@@ -15,8 +15,8 @@ from eval import te_val_batches, test
 from models.model_utils import *
 from datasets.datasets_utils import *
 from logger import CustomLogger as Logger
-from models.model_extensions_2.baseline_mixup_spec import NeuralNetwork as NN
 from datasets.dataset_handler import DatasetManager
+from models.model_extensions_2.baseline_mixup_spec import NeuralNetwork as NN
 
 """
 This file is for training models by applying mixup on spectrograms.
@@ -253,11 +253,29 @@ if __name__ == "__main__":
     DS_test_loader = DM.load_dataset(**config.DESED_PUBLIC_EVAL_ARGS)
     DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
 
+    if config.USE_CONCAT_VAL:
+        import datasets.concat_datasets as cd
+
+        # Load Validation 2 - DESED Real
+        _ = DM.load_dataset(**config.DESED_REAL_ARGS)
+        DS_real = DM.get_dataset(config.DESED_REAL_ARGS["name"])
+
+        datasets = [DS_val, DS_real]
+        DS_val = cd.ConcatDataset(datasets)
+        DS_val_loader = torch.utils.data.DataLoader(
+            DS_val,
+            batch_size=config.BATCH_SIZE,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=config.PIN_MEMORY,
+        )
+
     len_tr = len(DS_train)
     len_val = len(DS_val)
     len_te = len(DS_test)
 
-    # Prerequisite: All datasets have the same sample rate.
+    # Prerequisite: Datasets must have the same sample rate within its dataset
+    # (not between datasets)
     sample_rates = set()
     sample_rates.add(DS_train.get_sample_rate())
     sample_rates.add(DS_val.get_sample_rate())

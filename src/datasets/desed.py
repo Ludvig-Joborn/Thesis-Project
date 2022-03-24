@@ -50,7 +50,7 @@ class DESED_Strong(Dataset):
         return waveform, sample_rate, labeled_frames, idx
 
     def __str__(self) -> str:
-        return f"{self.name} dataset"
+        return self.name
 
     def filename(self, idx: int) -> str:
         return self.filenames[idx]

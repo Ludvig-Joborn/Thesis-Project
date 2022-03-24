@@ -13,7 +13,7 @@ from psds_eval import plot_psd_roc
 from models.model_utils import *
 from logger import CustomLogger as Logger
 from datasets.dataset_handler import DatasetManager
-from models.baseline import NeuralNetwork as NN
+from models.improved_baseline import NeuralNetwork as NN
 
 # Use cuda if available, exit otherwise
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -146,7 +146,6 @@ if __name__ == "__main__":
     DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
     len_te = len(DS_test)
 
-    # Prerequisite: All datasets have the same sample rate.
     sample_rates = set()
     sample_rates.add(DS_test.get_sample_rate())
 
