@@ -2,9 +2,18 @@ import torch
 import torchaudio.transforms as T
 import matplotlib.pyplot as plt
 import librosa
-from typing import Callable, List
+from torch.utils.data import Dataset
+from typing import Callable, List, Dict
+import numpy as np
+from pathlib import Path
+from tqdm import tqdm
 
+# User-defined imports
 import config
+from models.model_utils import load_model
+from utils import get_datetime, psd_score
+from models_dict import Model
+from logger import CustomLogger as Logger
 
 
 def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
@@ -63,53 +72,102 @@ def get_mel_spectrogram(
     return mel_spectrogram
 
 
-def plot_tr_val_acc_loss(
-    tr_losses: List[float],
-    tr_accs: List[float],
-    val_losses: List[float],
-    val_accs: List[float],
+def get_val_model_values(
+    picked_models: List[Model],
+    basepath: Path,
+    epochs: int,
+    log: Logger,
+    act_threshold: float = config.ACT_THRESHOLD,
+    DS_val: Dataset = None,
+    psds_params: Dict = config.PSDS_PARAMS,
+    operating_points: np.ndarray = config.OPERATING_POINTS,
+) -> Dict[str, Dict[str, List]]:
+    """
+    Creates and returns a dictionary with model names as keys and dictionaries with their metrics as values.
+    """
+    outputs = {}
+    for picked_model in tqdm(
+        iterable=picked_models,
+        desc="Models",
+        leave=False,
+        position=0,
+        colour=config.TQDM_MODELS,
+    ):
+        log.info(f"Model: {str(picked_model)}", display_console=False)
+        tqdm.write(f"Model: {str(picked_model)}")
+
+        # Get the threshold value in 'operating_points' that is closest to 'act_threshold'
+        val_model_basepath = basepath / str(picked_model) / "validation" / str(DS_val)
+        used_threshold = min(
+            operating_points, key=lambda input_list: abs(input_list - act_threshold)
+        )
+
+        # Calculate PSDS and Fscores for each epoch of the input model
+        values = {}
+        psd_scores = []
+        fscores_epochs = []
+        for e in tqdm(
+            iterable=range(1, epochs + 1),
+            desc="Epoch",
+            leave=False,
+            position=1,
+            colour=config.TQDM_EPOCHS,
+        ):
+            state = load_model(val_model_basepath / f"Ve{e}.pt")
+            op_table = state["op_table"]
+            psds, fscores = psd_score(
+                op_table,
+                DS_val.get_annotations(),
+                psds_params,
+                operating_points,
+            )
+            try:
+                fscores_epochs.append(fscores.Fscores.loc[used_threshold])
+            except:
+                fscores_epochs.append(0)
+
+            psd_scores.append(psds.value)
+
+        # Add values
+        values["tr_epoch_accs"] = state["tr_epoch_accs"][0:epochs]
+        values["tr_epoch_losses"] = state["tr_epoch_losses"][0:epochs]
+        values["val_acc_table"] = state["val_acc_table"][used_threshold][0:epochs]
+        values["val_epoch_losses"] = state["val_epoch_losses"][0:epochs]
+        values["Fscores"] = fscores_epochs
+        values["psds"] = psd_scores
+
+        outputs[str(picked_model)] = values
+    return outputs
+
+
+def plot_models(
+    what_to_plot: List[config.PLOT_MODES],
+    picked_models: List[Model],
+    basepath: Path,
+    log: Logger,
+    epochs: int = config.EPOCHS,
+    act_threshold: float = config.ACT_THRESHOLD,
+    DS_val: Dataset = None,
+    psds_params: Dict = config.PSDS_PARAMS,
+    operating_points: np.ndarray = config.OPERATING_POINTS,
+    plots_basepath: Path = None,
 ):
     """
-    Plots the training and validation accuracy and loss.
+    Plots metrics specified in 'what_to_plot' in config.py.
     """
-    plt.style.use("ggplot")
+    if not what_to_plot:
+        exit("What to plot is specified in config.py")
 
-    x = range(1, len(tr_losses) + 1)
-
-    # Parameters for plotting
-    c_tr = "m"
-    c_val = "c"
-    plot_params = {
-        "linestyle": "-",
-        "marker": "o",
-        "markersize": 4,
-    }
-
-    plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(x, tr_accs, color=c_tr, **plot_params, label="Training Acc")
-    plt.plot(x, val_accs, color=c_val, **plot_params, label="Validation Acc")
-    plt.ylabel("Accuracy")
-    plt.xlabel("Epoch")
-    plt.title("Training and Validation Accuracy")
-    plt.legend()
-    plt.subplot(1, 2, 2)
-    plt.plot(x, tr_losses, color=c_tr, **plot_params, label="Training Loss")
-    plt.plot(x, val_losses, color=c_val, **plot_params, label="Validation Loss")
-    plt.ylabel("Loss")
-    plt.xlabel("Epoch")
-    plt.title("Training and Validation Loss")
-    plt.legend()
-    plt.show()
-
-
-def plot_model_selection(model_saves):
-    """
-    Plots the training and validation accuracy and loss.
-    """
-
-    plt.style.use("ggplot")
-    x = range(1, config.EPOCHS + 1)
+    plot_vals = get_val_model_values(
+        picked_models,
+        basepath,
+        epochs,
+        log,
+        act_threshold,
+        DS_val,
+        psds_params,
+        operating_points,
+    )
 
     # Parameters for plotting
     plot_params = {
@@ -117,50 +175,32 @@ def plot_model_selection(model_saves):
         "marker": "o",
         "markersize": 4,
     }
+    plt.style.use("ggplot")
+    plt.figure(figsize=(18, 10))
 
-    plt.figure(figsize=(12, 6))
-    plt.subplot(2, 2, 1)
-    for key, model_save in model_saves.items():
-        plt.plot(
-            x, model_save["tr_epoch_accs"][0 : config.EPOCHS], **plot_params, label=key
-        )
-    plt.ylabel("Accuracy")
-    plt.title("Training Accuracy")
-    plt.legend()
+    # Determine plot-grid
+    if len(what_to_plot) == 1:
+        plot_grid = (1, 1)
+    else:
+        plot_grid = (2, -(-len(what_to_plot) // 2))
 
-    plt.subplot(2, 2, 2)
-    for key, model_save in model_saves.items():
-        plt.plot(
-            x,
-            model_save["tr_epoch_losses"][0 : config.EPOCHS],
-            **plot_params,
-            label=key,
-        )
-    plt.ylabel("Loss")
-    plt.title("Training Loss")
-    plt.legend()
+    ### Plots ###
+    x = range(1, epochs + 1)
+    for i, wtp in enumerate(what_to_plot):
+        for model_name, values in plot_vals.items():
+            plt.subplot(plot_grid[0], plot_grid[1], i + 1)
+            plt.plot(x, values[wtp.value[0]], **plot_params, label=model_name)
+            plt.ylabel(wtp.value[1])
+            plt.xlabel("Epoch")
+            plt.title(wtp.value[2])
+            plt.legend()
 
-    plt.subplot(2, 2, 3)
-    for key, model_save in model_saves.items():
-        plt.plot(
-            x, model_save["val_epoch_accs"][0 : config.EPOCHS], **plot_params, label=key
+    if plots_basepath is not None:
+        path_to_plot = plots_basepath / (
+            f"{get_datetime()}_OP{act_threshold}"
+            f"_DTC{psds_params['dtc_threshold']}_GTC{psds_params['gtc_threshold']}.png"
         )
-    plt.ylabel("Accuracy")
-    plt.xlabel("Epoch")
-    plt.title("Validation Accuracy")
-    plt.legend()
-
-    plt.subplot(2, 2, 4)
-    for key, model_save in model_saves.items():
-        plt.plot(
-            x,
-            model_save["val_epoch_losses"][0 : config.EPOCHS],
-            **plot_params,
-            label=key,
-        )
-    plt.ylabel("Loss")
-    plt.xlabel("Epoch")
-    plt.title("Validation Loss")
-    plt.legend()
+        plt.savefig(path_to_plot)
+        tqdm.write(f"Plot saved to: {path_to_plot}")
 
     plt.show()

@@ -965,6 +965,55 @@ class PSDSEval:
 
         return _op_points_t
 
+    ### NOTE: ADDED BY US ###
+    def get_all_fscores_per_class(self, class_constraints, alpha_ct=0.0, beta=1.0):
+        """NOTE: Function added by us, inspired by 'select_operating_points_per_class'.
+        We can't guarantee it works for anything other than just Speech-class.
+
+        Look at 'select_operating_points_per_class'-docstring for details.
+        Returns a dictionary with Fscores, among other values.
+        """
+
+        self._validate_simple_dataframe(
+            class_constraints,
+            columns=["class_name", "constraint", "value"],
+            name="constraints",
+        )
+        pcr = self._effective_fp_rate(alpha_ct)
+        class_names_no_world = sorted(set(self.class_names).difference([WORLD]))
+
+        n_cls_gt = self._get_dataset_counts()
+        gt_dur, dataset_dur = self._get_dataset_duration()
+
+        for index, row in class_constraints.iterrows():
+            class_name = row["class_name"]
+            if class_name not in self.class_names:
+                raise PSDSEvalError(f"Unknown class: {class_name}")
+            class_index = class_names_no_world.index(class_name)
+            efpr = pcr.effective_fp_rate[class_index]
+            tpr = pcr.tp_ratio[class_index]
+            fpr = pcr.fp_rate[class_index]
+
+            tp_counts = tpr * n_cls_gt[class_name]
+            fn_counts = n_cls_gt[class_name] - tp_counts
+            fp_counts = fpr * dataset_dur / self.nseconds
+            f_scores = self.compute_f_score(tp_counts, fp_counts, fn_counts, beta=beta)
+
+            chosen_op_point_dict = {
+                "Thresholds": self.operating_points.threshold.values,
+                "TPRs": tpr,
+                "FPRs": fpr,
+                "eFPRs": efpr,
+                "Fscores": f_scores,
+            }
+            # Append a '1' to the end of thresholds to make dict-entries equally long
+            chosen_op_point_dict["Thresholds"] = np.append(
+                chosen_op_point_dict["Thresholds"], 1
+            )
+        return chosen_op_point_dict
+
+    #########################
+
     @staticmethod
     def _effective_tp_ratio(tpr_efpr, alpha_st):
         """Calculates the effective true positive rate (eTPR)
@@ -1085,8 +1134,12 @@ class PSDSEval:
         return np.sum(dx * _y)
 
 
-def plot_psd_roc(psd, en_std=False, axes=None, filename=None, **kwargs):
-    """Shows (or saves) the PSD-ROC with optional standard deviation.
+def plot_psd_roc(psd, show=False, en_std=False, axes=None, filename=None, **kwargs):
+    """NOTE: Modified by us to show TPR and FPR instead of eTPR and eFPR,
+        and without displaying alpha_st and alpha_ct.
+        The argument 'show' was also added as input argument to the function.
+
+    Shows (or saves) the PSD-ROC with optional standard deviation.
 
     When the plot is generated the area under PSD-ROC is highlighted.
     The plot is affected by the values used to compute the metric:
@@ -1104,13 +1157,13 @@ def plot_psd_roc(psd, en_std=False, axes=None, filename=None, **kwargs):
     if not isinstance(psd, PSDS):
         raise PSDSEvalError("The psds data needs to be given as a PSDS object")
     if axes is not None and not isinstance(axes, plt.Axes):
-        raise PSDSEvalError("The give axes is not a matplotlib.axes.Axes")
+        raise PSDSEvalError("The given axes is not a matplotlib.axes.Axes")
 
-    show = False
+    # show = False  # NOTE: Removed
     if axes is None:
         fig = plt.figure(figsize=kwargs.get("figsize", (7, 7)))
         axes = fig.add_subplot()
-        show = True
+        # show = True  # NOTE: Removed
 
     axes.vlines(psd.max_efpr, ymin=0, ymax=1.0, linestyles="dashed")
     axes.step(psd.plt.xp, psd.plt.yp, "b-", label="PSD-ROC", where="post")
@@ -1136,12 +1189,13 @@ def plot_psd_roc(psd, en_std=False, axes=None, filename=None, **kwargs):
     axes.set_xlim([0, psd.max_efpr])
     axes.set_ylim([0, 1.0])
     axes.legend()
-    axes.set_ylabel("eTPR")
-    axes.set_xlabel(f"eFPR per {psd.duration_unit}")
-    axes.set_title(
+    axes.set_ylabel("TPR")  # NOTE: modified here!
+    axes.set_xlabel(f"FPR per {psd.duration_unit}")  # NOTE: modified here!
+    axes.set_title(  # NOTE: modified here!
         f"PSDS: {psd.value:.5f}\n"
-        f"alpha_st: {psd.alpha_st:.2f}, alpha_ct: "
-        f"{psd.alpha_ct:.2f}, max_efpr: {psd.max_efpr}"
+        # f"alpha_st: {psd.alpha_st:.2f},
+        # alpha_ct: {psd.alpha_ct:.2f}, "
+        f"max_fpr: {psd.max_efpr}"
     )
     axes.grid()
     if filename:

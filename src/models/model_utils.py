@@ -17,23 +17,19 @@ def activation(output: torch.Tensor, act_threshold: float) -> torch.Tensor:
     return (output > act_threshold).float()
 
 
-def update_acc(
-    predictions: torch.Tensor, labels: torch.Tensor, total: int
+def calc_nr_correct_predictions(
+    predictions: torch.Tensor, labels: torch.Tensor
 ) -> Tuple[torch.Tensor, int]:
     """
-    Helps track the number of correct and total prediction used to calculate accuracy.
+    Calculate number of correct and total predictions
+    (used to calculate accuracy and loss).
     """
-    return (predictions.eq(labels).sum(), total + torch.numel(labels))
+    return (predictions.eq(labels).sum(), torch.numel(labels))
 
 
-def save_model(
-    state: Dict,
-    save_best: bool,
-    checkpoint_path: Path,
-    best_model_path: Path = None,
-):
+def save_model(state: Dict, model_path: Path):
     """
-    The state dictionary is saved to a checkpoint file and has the following format::
+    The state dictionary is saved to a file and has the following format::
 
     ```
     state = {
@@ -43,15 +39,9 @@ def save_model(
         ...
     }
     ```
-
-    If the model is the best so far, also save it to the best_model_path.
     """
-    # Save a checkpoint state
-    torch.save(state, checkpoint_path)
-
-    # Save best model so far
-    if save_best:
-        torch.save(state, best_model_path)
+    # Save model states
+    torch.save(state, model_path)
 
 
 def load_model(model_path: Path) -> Dict:
@@ -62,7 +52,7 @@ def load_model(model_path: Path) -> Dict:
         state = torch.load(model_path)
         return state
     else:
-        exit(f"Failed to load model: {model_path}")
+        raise FileNotFoundError(f"Failed to load model: {model_path}")
 
 
 ### Convblock with GLU or ReLU ###

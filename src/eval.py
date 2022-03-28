@@ -1,65 +1,153 @@
 import torch
-from torchinfo import summary
-from torch.utils.data import DataLoader
-from torch import nn
+from torch.nn import Module
+from torch.nn.modules import loss
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import logging
+import numpy as np
+import matplotlib.pyplot as plt
+from typing import Dict, Tuple
+from pathlib import Path
+import pandas as pd
 
 # User defined imports
 import config
-from utils import *
-from plot_utils import *
+from utils import get_detection_table, psd_score, get_datetime
 from psds_eval import plot_psd_roc
-from models.model_utils import *
+from models.model_utils import calc_nr_correct_predictions, activation
 from logger import CustomLogger as Logger
-from datasets.dataset_handler import DatasetManager
-from models.improved_baseline import NeuralNetwork as NN
-
-# Use cuda if available, exit otherwise
-device = "cuda" if torch.cuda.is_available() else "cpu"
-if device == "cpu":
-    exit("Please use a GPU to train this model.")
+from validate import te_val_batches
 
 
-def te_val_batches(
+def calc_test_acc_loss(
+    device: str,
+    DS_test_loader: DataLoader,
+    len_te: int,
+    model: Module,
+    criterion: loss._Loss,
+    act_threshold: float,
+    log: Logger,
+) -> Tuple[float, float]:
+    """
+    Calculates the test accuracy and loss with the given activation threshold.
+    """
+    test_loss, test_acc = te_batches_acc_loss(
+        device,
+        DS_test_loader,
+        len_te,
+        model,
+        criterion,
+        act_threshold,
+    )
+    # Log test loss and accuracy to file-log only
+    log.info(f"Test Loss: {test_loss}", display_console=False)
+    log.info(f"Test Accuracy: {test_acc}", display_console=False)
+    # Write using tqdm (keeps terminal tidy)
+    tqdm.write(f"Test Accuracy: {test_acc}")
+
+    return test_acc, test_loss
+
+
+def calc_test_psds(
+    device: str,
+    model_basepath: Path,
+    DS_test_loader: DataLoader,
+    DS_test: Dataset,
+    len_te: int,
+    model: Module,
+    criterion: loss._Loss,
+    log: Logger,
+    psds_params: Dict = config.PSDS_PARAMS,
+    operating_points: np.ndarray = config.OPERATING_POINTS,
+    plot_psds_roc: bool = config.PLOT_PSD_ROC,
+    save_psds_roc: bool = config.SAVE_PSD_ROC,
+) -> Tuple[object, pd.DataFrame]:
+    """
+    Calculates the test PSD-Score with the parameters specificed in 'psds_params'.
+    """
+    output_table, file_ids, file_ids, _ = te_val_batches(
+        device, DS_test_loader, len_te, model, criterion, testing=True
+    )
+    ### PSDS and F1-Score ###
+    operating_points_table = get_detection_table(
+        output_table, file_ids, operating_points, DS_test, testing=True
+    )
+    psds, fscores = psd_score(
+        operating_points_table,
+        DS_test.get_annotations(),
+        psds_params,
+        operating_points,
+    )
+
+    # Strings to log and write to terminal
+    str_pars = (
+        f"Parameters: dtc={config.PSDS_PARAMS['dtc_threshold']} "
+        f"| gtc={config.PSDS_PARAMS['gtc_threshold']}"
+    )
+    str_psds = f"PSD-Score: {psds.value:5f}"
+    str_fscore = f"F1-Scores:\n{str(fscores)}"
+    # Log all output to file-log only
+    log.info(str_pars, display_console=False)
+    log.info(str_psds, display_console=False)
+    log.info(str_fscore, display_console=False)
+    # Write using tqdm (keeps terminal tidy)
+    tqdm.write(str_pars)
+    tqdm.write(str_psds)
+    tqdm.write(str_fscore)
+
+    if save_psds_roc:
+        plt.style.use("fast")
+        plot_filepath = model_basepath / f"{get_datetime()}_PSDS_{psds.value:2f}.png"
+        plot_psd_roc(psds, show=False, filename=plot_filepath)
+        tqdm.write(f"PSD-ROC saved to: {plot_filepath}")
+
+    if plot_psds_roc:
+        # Plot the PSD-ROC
+        plt.style.use("fast")
+        plot_psd_roc(psds, show=True)
+
+    return psds, fscores
+
+
+### PSDS ###
+# NOTE: see te_val_batches() in validate.py
+############
+
+
+def te_batches_acc_loss(
+    device: str,
     data_loader: DataLoader,
     len_data: int,
-    model,
-    criterion,
-    testing: bool = False,
-) -> Tuple[float, torch.Tensor, int, int, torch.Tensor, torch.Tensor]:
+    model: Module,
+    criterion: loss._Loss,
+    act_threshold: float,
+) -> Tuple[float, float]:
     """
     Runs batches for the dataloader sent in without updating any model weights.
-    Used for calculating validation and test accuracy and loss.
+    Used for calculating test accuracy and loss.
     """
-    if config.CALC_PSDS:
-        ### PSDS ###
-        # Mel-Spectrogram frames
-        output_table = torch.empty(
-            (len_data, config.N_MELSPEC_FRAMES),
-            device=device,
-        )  # Size: (692, 157) for desed public eval and 16kHz sampling
-        file_ids = torch.empty((len_data), device=device)
-        # variable for number of added elements
-        n_added_elems = torch.tensor(0, device=device)
-        ############
-
     # Track loss
     total_loss = 0
-
+    total = 0
     # Track correct and total predictions to calculate epoch accuracy
     correct = torch.zeros(-(len_data // -config.BATCH_SIZE)).to(
         device, non_blocking=True
     )
-    total = 0
 
     # Set model state to evaluation
     model.eval()
 
     ##### Evaluate on validation dataset #####
     with torch.no_grad():
-        desc = "Test Batch progress:" if testing else "Valdiation Batch progress:"
-        for i, sample in enumerate(tqdm(iterable=data_loader, desc=desc)):
+        desc = "Test Batch progress"
+        for i, sample in enumerate(
+            tqdm(
+                iterable=data_loader,
+                desc=desc,
+                leave=False,
+                position=1,
+                colour=config.TQDM_BATCHES,
+            )
+        ):
             waveform, sample_rate, labels, file_id = sample
 
             # Send parameters to device
@@ -72,148 +160,12 @@ def te_val_batches(
 
             # Track loss statistics
             total_loss += loss
-            correct[i], total = update_acc(
-                activation(outputs, config.ACT_THRESHOLD), labels, total
+            correct[i], total_i = calc_nr_correct_predictions(
+                activation(outputs, act_threshold), labels
             )
+            total += total_i
 
-            if config.CALC_PSDS:
-                ### PSDS ###
-                # Add file id to tensor (used for getting filenames later)
-                len_ = file_id.shape[0]
-                file_ids[n_added_elems : (n_added_elems + len_)] = file_id
-
-                # Reduce dimensions
-                outputs = torch.squeeze(outputs)
-
-                # Add outputs to output_table
-                len_ = outputs.shape[0]
-                output_table[n_added_elems : (n_added_elems + len_), :] = outputs
-
-                # Track number of added elements so far
-                n_added_elems += len_
-                ############
-    if config.CALC_PSDS:
-        return total_loss, correct, total, i, output_table, file_ids
-
-    return total_loss, correct, total, i, torch.tensor([]), torch.tensor([])
-
-
-def test(
-    te_loader: DataLoader,
-    len_te: int,
-    model,
-    criterion,
-    log: Logger,
-    testing: bool = False,
-) -> Tuple[float, float]:
-    """
-    Test loop. Calculates test loss and accuracy with no weight updates.
-    """
-
-    ##### Run test batches #####
-    (
-        test_loss,
-        correct,
-        total,
-        total_te_batches,
-        output_table,
-        file_ids,
-    ) = te_val_batches(te_loader, len_te, model, criterion, testing)
-
-    # Log test loss and accuracy
-    test_loss = test_loss.item()
-    test_acc = correct.sum().item() / total
-    log.info(
-        f"Average testing loss: {test_loss/(total_te_batches+1)}",
-        display_console=False,
-    )
-    log.info(f"Average test accuracy: {test_acc}", display_console=True)
-
-    return test_loss, test_acc, output_table, file_ids
-
-
-if __name__ == "__main__":
-
-    ### MISC ###
-    # Create new log (only a console logger - does not create file)
-    log = Logger(config.LOGGER_TEST, Path(""), logging.DEBUG, logging.NOTSET)
-
-    ### Load Datasets ###
-
-    # Load datasets via DatasetManager
-    DM = DatasetManager()
-    DS_test_loader = DM.load_dataset(**config.DESED_PUBLIC_EVAL_ARGS)
-    DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
-    len_te = len(DS_test)
-
-    # Prerequisite: All sample rates within a dataset must be equal (or resampled
-    # at dataset level) but may differ between datasets..
-    sample_rates = set()
-    sample_rates.add(DS_test.get_sample_rate())
-
-    ### Declare Model ###
-
-    # Network
-    model = NN(sample_rates, config.SAMPLE_RATE).to(device, non_blocking=True)
-    # summary(model, input_size=(BATCH_SIZE, 1, 10 * sample_rate), device=device)
-
-    # Loss function
-    criterion = nn.BCELoss()
-
-    # Load model from disk
-    state = load_model(config.LOAD_MODEL_PATH)
-    model.load_state_dict(state["state_dict"])
-    log.info(f"Loaded model from {config.LOAD_MODEL_PATH}")
-
-    # Number of trained parameters in network
-    log.info(f"Number of trained parameters: {nr_parameters(model)}")
-
-    ### Test Model ###
-    log.info("Testing", add_header=True)
-
-    te_loss, te_acc, output_table, file_ids = test(
-        DS_test_loader, len_te, model, criterion, log, testing=True
-    )
-
-    # Dictionary with paths, losses and accuracies
-    model_save = state["model_save"]
-    tr_epoch_losses = model_save["tr_epoch_losses"]
-    tr_epoch_accs = model_save["tr_epoch_accs"]
-    val_epoch_losses = model_save["val_epoch_losses"]
-    val_epoch_accs = model_save["val_epoch_accs"]
-
-    # Plot training and validation accuracy
-    if config.PLOT_TR_VAL_ACC:
-        plot_tr_val_acc_loss(
-            tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs
-        )
-
-    if config.CALC_PSDS:
-        log.info("PSD-Score", add_header=True)
-
-        ### PSDS and F1-Score ###
-        operating_points_table = get_detection_table(output_table, file_ids, DS_test)
-
-        # Get PSD-Score, F1-Score
-        psds, f1_score_obj = psd_score(
-            operating_points_table, DS_test.get_annotations()
-        )
-
-        log.info(
-            "Parameters: "
-            f"dtc={config.PSDS_PARAMS['dtc_threshold']}"
-            f" | gtc={config.PSDS_PARAMS['gtc_threshold']}"
-            f" | cttc={config.PSDS_PARAMS['cttc_threshold']}"
-            f" | alpha_ct={config.PSDS_PARAMS['alpha_ct']}"
-            f" | alpha_st={config.PSDS_PARAMS['alpha_st']}"
-        )
-        log.info(f"PSD-Score:    {psds.value:5f}")
-        log.info(f"TPR:          {f1_score_obj.TPR[0]:5f}")
-        log.info(f"FPR:          {f1_score_obj.FPR[0]:5f}")
-        log.info(f"OP-threshold: {f1_score_obj.threshold[0]}")
-        log.info(f"F1-Score:     {f1_score_obj.Fscore[0]:5f}")
-
-        if config.PLOT_PSD_ROC:
-            # Plot the PSD-ROC
-            plt.style.use("fast")
-            plot_psd_roc(psds)
+    # Calculate accuracy and loss
+    avg_loss = float(total_loss.item() / total)
+    avg_acc = float(correct.sum().item() / total)
+    return avg_acc, avg_loss

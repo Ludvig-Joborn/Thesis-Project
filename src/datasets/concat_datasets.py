@@ -1,4 +1,5 @@
 import torch
+import pandas as pd
 from torch.utils.data import Dataset
 
 # Pytorch imports / definitions
@@ -85,6 +86,13 @@ class ConcatDataset(Dataset[T_co]):
                 d, IterableDataset
             ), "ConcatDataset does not support IterableDataset"
             assert self.sample_rate == d.get_sample_rate()
+        self.annotations = pd.concat(
+            [d.get_annotations() for d in self.datasets], ignore_index=True
+        )
+        # Drop nan rows
+        self.annotations = self.annotations.dropna()
+        self.annotations = self.annotations.reset_index(drop=True)
+
         self.cumulative_sizes = self.cumsum(self.datasets)
         self.name = "_".join([str(d) for d in datasets])
 
@@ -95,8 +103,12 @@ class ConcatDataset(Dataset[T_co]):
         dataset_idx, sample_idx = self._get_indices(idx)
         return self.datasets[dataset_idx][sample_idx]
 
-    def get_annotations(self) -> None:
-        return None
+    def filename(self, idx: int) -> str:
+        dataset_idx, sample_idx = self._get_indices(idx)
+        return self.datasets[dataset_idx].filename(sample_idx)
+
+    def get_annotations(self) -> pd.DataFrame:
+        return self.annotations
 
     def get_sample_rate(self):
         return self.sample_rate
