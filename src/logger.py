@@ -33,7 +33,8 @@ class CustomLogger:
             self.file_handler.setLevel(self.file_level)
 
         # Create formatters
-        self.set_default_format()
+        # self.set_default_format()
+        self.set_header_format()
 
         # Add handlers to the logger
         self.logger.addHandler(self.console_handler)
@@ -87,7 +88,7 @@ class CustomLogger:
             function("# " + ms + " " * (len(msg_split[0]) - len(ms)) + " #")
         function("#" * (len(msg_split[0]) + PAD))
 
-        self.set_default_format()
+        # self.set_default_format()
 
     def log(self, function, msg: str, add_header: bool, display_console: bool):
         """
@@ -123,14 +124,14 @@ class CustomLogger:
         Logs warning messages. If 'add_header' then display message as a header.
         If not 'display_console' then DEBUG & INFO logs will not show in console (only log file).
         """
-        self.log(self.logger.warning, msg, add_header, display_console)
+        self.log(self.logger.warning, "WARN - " + msg, add_header, display_console)
 
     def error(self, msg: str, add_header: bool = False, display_console: bool = True):
         """
         Logs error messages. If 'add_header' then display message as a header.
         If not 'display_console' then DEBUG & INFO logs will not show in console (only log file).
         """
-        self.log(self.logger.error, msg, add_header, display_console)
+        self.log(self.logger.error, "ERROR - " + msg, add_header, display_console)
 
     def critical(
         self, msg: str, add_header: bool = False, display_console: bool = True
@@ -139,4 +140,4 @@ class CustomLogger:
         Logs critical messages. If 'add_header' then display message as a header.
         If not 'display_console' then DEBUG & INFO logs will not show in console (only log file).
         """
-        self.log(self.logger.critical, msg, add_header, display_console)
+        self.log(self.logger.critical, "CRITICAL - " + msg, add_header, display_console)

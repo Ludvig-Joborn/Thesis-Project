@@ -1,37 +1,28 @@
 import torch
+from torch.nn import Module
+from torch.nn.modules import loss
 from torch.utils.data import DataLoader
-from torch import nn
+from torch.optim import Optimizer
+from torch.optim import lr_scheduler
 from tqdm import tqdm
-import torch.optim as optim
-from torch.optim.lr_scheduler import ExponentialLR
-from typing import Tuple, List, Dict
+from typing import Tuple
 from pathlib import Path
 
 # User defined imports
 import config
-from utils import get_datetime, create_path
-from plot_utils import plot_tr_val_acc_loss
-from eval import te_val_batches, test
-from models.model_utils import *
+from models.model_utils import save_model, calc_nr_correct_predictions, activation
 from logger import CustomLogger as Logger
-from datasets.dataset_handler import DatasetManager
-from models.baseline import NeuralNetwork as NN
-from models.improved_baseline import NeuralNetwork as NN
-
-
-# Use cuda if available, exit otherwise.
-device = "cuda" if torch.cuda.is_available() else "cpu"
-if device == "cpu":
-    exit("Please use a GPU to train this model.")
 
 
 def train_batches(
+    device: str,
     tr_loader: DataLoader,
     len_tr: int,
-    model,
-    criterion,
-    optimizer,
-) -> Tuple[int, torch.Tensor, int, int]:
+    model: Module,
+    criterion: loss._Loss,
+    optimizer: Optimizer,
+    scheduler: lr_scheduler,
+) -> Tuple[float, float]:
     """
     Runs training batches and updates model weights.
     Also tracks the training loss,
@@ -39,7 +30,6 @@ def train_batches(
     """
     # Track loss for a whole epoch
     training_loss = 0
-
     # Track correct and total predictions to calculate epoch accuracy
     correct_tr = torch.zeros(-(len_tr // -config.BATCH_SIZE)).to(
         device, non_blocking=True
@@ -51,7 +41,13 @@ def train_batches(
 
     ##### Model training #####
     for i, sample in enumerate(
-        tqdm(iterable=tr_loader, desc="Training Batch progress:")
+        tqdm(
+            iterable=tr_loader,
+            desc="Training Batch progress",
+            position=2,
+            leave=False,
+            colour=config.TQDM_BATCHES,
+        )
     ):
         waveform, sample_rate, labels, _ = sample
 
@@ -71,261 +67,74 @@ def train_batches(
         # Track statistics
         loss = loss.detach()
         training_loss += loss
-        correct_tr[i], total_tr = update_acc(
-            activation(outputs, config.ACT_THRESHOLD), labels, total_tr
+        correct_tr[i], total_i = calc_nr_correct_predictions(
+            activation(outputs, config.ACT_THRESHOLD), labels
         )
+        total_tr += total_i
 
-    return training_loss, correct_tr, total_tr, i
+    tr_loss = float(training_loss.item() / total_tr)
+    tr_acc = float(correct_tr.sum().item() / total_tr)
+
+    # Update learning rate
+    scheduler.step()
+
+    return tr_loss, tr_acc
 
 
 def train(
+    device: str,
     start_epoch: int,
-    tr_loader: DataLoader,
+    end_epoch: int,  # Inclusive
+    DS_train_loader: DataLoader,
     len_tr: int,
-    val_loader: DataLoader,
-    len_val: int,
-    model,
-    criterion,
-    optimizer,
-    scheduler1,
+    model: Module,
+    criterion: loss._Loss,
+    optimizer: Optimizer,
+    scheduler: lr_scheduler,
     log: Logger,
-    model_save: Dict,
-) -> Tuple[List[float], List[float], List[float], List[float]]:
+    model_basepath: Path,
+):
     """
-    Training loop. Uses validation data to save the best model.
+    Trains a model on the given dataset and saves the weights (with the training loss and accuracy).
     """
-    # Load model paramters (if empty params, start training from scratch)
-    model_path = model_save["model_path"]
-    best_model_path = model_save["best_model_path"]
-    # Tracks losses and accuracies across epochs
-    tr_epoch_losses = model_save["tr_epoch_losses"]
-    tr_epoch_accs = model_save["tr_epoch_accs"]
-    val_epoch_losses = model_save["val_epoch_losses"]
-    val_epoch_accs = model_save["val_epoch_accs"]
-    # Used for saving the best model
-    best_val_acc = model_save["best_val_acc"]
+    tr_epoch_losses = []
+    tr_epoch_accs = []
+    for epoch in tqdm(
+        iterable=range(start_epoch, end_epoch + 1),
+        desc="Epoch",
+        position=1,
+        leave=False,
+        colour=config.TQDM_EPOCHS,
+    ):
+        log.info(f"Epoch {epoch}", display_console=False)
 
-    for epoch in range(start_epoch, config.EPOCHS + 1):
-        log.info(f"Epoch {epoch}")
+        epoch_filepath = model_basepath / f"e{epoch}.pt"
 
         ##### Model batch training #####
-        training_loss, correct_tr, total_tr, total_tr_epochs = train_batches(
-            tr_loader, len_tr, model, criterion, optimizer
+        tr_loss, tr_acc = train_batches(
+            device, DS_train_loader, len_tr, model, criterion, optimizer, scheduler
         )
 
-        # Update learning_rate
-        scheduler1.step()
-
-        # Log training loss and accuracy
+        ### Log training loss and accuracy ###
         log.info(
-            f"Epoch {epoch}: Average training loss: {training_loss.item()/(total_tr_epochs+1)}",
+            f"Epoch {epoch}: Average training loss: {tr_loss}",
             display_console=False,
         )
         log.info(
-            f"Epoch {epoch}: Average training accuracy: {correct_tr.sum().item() / total_tr}",
+            f"Epoch {epoch}: Average training accuracy: {tr_acc}",
             display_console=False,
         )
 
-        # Save this epoch's training loss and accuracy
-        tr_epoch_losses.append(training_loss.item() / (total_tr_epochs + 1))
-        tr_epoch_accs.append(correct_tr.sum().item() / total_tr)
-
-        ##### Model validation #####
-        (
-            validation_loss,
-            correct_val,
-            total_val,
-            total_val_epochs,
-            _,
-            _,
-        ) = te_val_batches(val_loader, len_val, model, criterion)
-
-        # Log validation loss and accuracy
-        log.info(
-            f"Epoch {epoch}: Average validation loss: {validation_loss.item()/(total_val_epochs+1)}",
-            display_console=False,
-        )
-        log.info(
-            f"Epoch {epoch}: Average validation acc: {correct_val.sum().item() / total_val}",
-            display_console=False,
-        )
-
-        # Save this epoch's training loss and accuracy
-        val_acc = correct_val.sum().item() / total_val
-        val_epoch_losses.append(validation_loss.item() / (total_val_epochs + 1))
-        val_epoch_accs.append(val_acc)
-
-        # Save model after each epoch
-        model_save = {
-            "model_path": model_path,
-            "best_model_path": best_model_path,
-            "tr_epoch_losses": tr_epoch_losses,
-            "tr_epoch_accs": tr_epoch_accs,
-            "val_epoch_losses": val_epoch_losses,
-            "val_epoch_accs": val_epoch_accs,
-            "best_val_acc": best_val_acc,
-            "log_path": log.path(),
-        }
+        ### Save Model ###
+        # Update for this epoch's training loss and accuracy
+        tr_epoch_losses.append(tr_loss)
+        tr_epoch_accs.append(tr_acc)
         state = {
             "epoch": epoch,
             "state_dict": model.state_dict(),
             "optimizer": optimizer.state_dict(),
-            "scheduler1": scheduler1.state_dict(),
-            "model_save": model_save,
+            "scheduler": scheduler.state_dict(),
+            "tr_epoch_losses": tr_epoch_losses,
+            "tr_epoch_accs": tr_epoch_accs,
         }
-        save_model(state, False, model_path)
-
-        # Has validation accuracy increased?
-        # If yes, save the current model as 'best' model.
-        if best_val_acc < val_acc:
-            best_val_acc = val_acc
-            log.info(f"New best model at epoch {epoch}. Saving model.")
-            save_model(state, True, model_path, best_model_path)
-
-    return (tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs)
-
-
-if __name__ == "__main__":
-
-    if config.DETERMINISTIC_RUN:
-        import numpy as np
-        import random
-
-        random.seed(config.SEED)
-        np.random.seed(config.SEED)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.manual_seed(config.SEED)
-        torch.cuda.manual_seed_all(config.SEED)
-    else:
-        # Used for optimizing CNN training (when data is of same-sized inputs)
-        torch.backends.cudnn.benchmark = True
-
-    ### MISC ###
-    if config.CONTINUE_TRAINING:
-        state = load_model(config.LOAD_MODEL_PATH)
-        log_path = state["model_save"]["log_path"]
-    else:
-        # Create new logfile
-        filename = get_datetime() + "_" + config.LOGGER_TRAIN.split("-")[0]
-        log_path = create_path(Path(config.LOG_DIR), filename, ".log")
-
-    log = Logger(config.LOGGER_TRAIN, log_path)
-
-    ### Load Datasets ###
-
-    # Load datasets via DatasetManager
-    DM = DatasetManager()
-    # Load Train
-    DS_train_loader = DM.load_dataset(**config.DESED_SYNTH_TRAIN_ARGS)
-    DS_train = DM.get_dataset(config.DESED_SYNTH_TRAIN_ARGS["name"])
-    # Load Validation
-    DS_val_loader = DM.load_dataset(**config.DESED_SYNTH_VAL_ARGS)
-    DS_val = DM.get_dataset(config.DESED_SYNTH_VAL_ARGS["name"])
-    # Load Test
-    DS_test_loader = DM.load_dataset(**config.DESED_PUBLIC_EVAL_ARGS)
-    DS_test = DM.get_dataset(config.DESED_PUBLIC_EVAL_ARGS["name"])
-
-    if config.USE_CONCAT_VAL:
-        import datasets.concat_datasets as cd
-
-        # Load Validation 2 - DESED Real
-        _ = DM.load_dataset(**config.DESED_REAL_ARGS)
-        DS_real = DM.get_dataset(config.DESED_REAL_ARGS["name"])
-
-        datasets = [DS_val, DS_real]
-        DS_val = cd.ConcatDataset(datasets)
-        DS_val_loader = torch.utils.data.DataLoader(
-            DS_val,
-            batch_size=config.BATCH_SIZE,
-            shuffle=True,
-            num_workers=0,
-            pin_memory=config.PIN_MEMORY,
-        )
-
-    len_tr = len(DS_train)
-    len_val = len(DS_val)
-    len_te = len(DS_test)
-
-    # Prerequisite: All sample rates within a dataset must be equal (or resampled
-    # at dataset level) but may differ between datasets.
-    sample_rates = set()
-    sample_rates.add(DS_train.get_sample_rate())
-    sample_rates.add(DS_val.get_sample_rate())
-    sample_rates.add(DS_test.get_sample_rate())
-
-    ### Declare Model ###
-    # Network
-    model = NN(sample_rates, config.SAMPLE_RATE).to(device, non_blocking=True)
-
-    # Loss function
-    criterion = nn.BCELoss()
-
-    # optimizer = optim.Adam(model.parameters(), lr=LR_adam, weight_decay=WD)
-    optimizer = optim.SGD(
-        model.parameters(), lr=config.LR_sgd, momentum=config.MOMENTUM
-    )
-
-    # Schedulers for updating learning rate
-    scheduler1 = ExponentialLR(optimizer, gamma=config.GAMMA_1)
-
-    # Load model from disk to continue training
-    if config.CONTINUE_TRAINING:
-        start_epoch = state["epoch"] + 1  # Start from next epoch
-        model.load_state_dict(state["state_dict"])
-        optimizer.load_state_dict(state["optimizer"])
-        scheduler1.load_state_dict(state["scheduler1"])
-
-        # Dictionary with path, losses and accuracies
-        model_save = state["model_save"]
-
-        log.info("")
-        log.info("")
-        log.info("")
-        log.info(f"Loaded model from {config.LOAD_MODEL_PATH}")
-    else:
-        start_epoch = 1
-        # Model Paths for saving model during training
-        model_path = create_path(Path(config.SAVED_MODELS_DIR))
-        best_model_path = create_path(Path(config.SAVED_MODELS_DIR), best=True)
-        model_save = {
-            "model_path": model_path,
-            "best_model_path": best_model_path,
-            "tr_epoch_losses": [],
-            "tr_epoch_accs": [],
-            "val_epoch_losses": [],
-            "val_epoch_accs": [],
-            "best_val_acc": 0,
-            "log_path": log.path(),
-        }
-
-    ### Train Model ###
-    log.info("Training", add_header=True)
-
-    # Log number of parameters to train in network
-    log.info(f"Number of parameters to train: {nr_parameters(model)}")
-
-    tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs = train(
-        start_epoch,
-        DS_train_loader,
-        len_tr,
-        DS_val_loader,
-        len_val,
-        model,
-        criterion,
-        optimizer,
-        scheduler1,
-        log,
-        model_save,
-    )
-
-    ### Test Model (temporary) ###
-    log.info("Testing", add_header=True)
-
-    te_loss, te_acc, _, _ = test(
-        DS_test_loader, len_te, model, criterion, log, testing=True
-    )
-
-    plot_tr_val_acc_loss(
-        tr_epoch_losses, tr_epoch_accs, val_epoch_losses, val_epoch_accs
-    )
+        save_model(state, epoch_filepath)
