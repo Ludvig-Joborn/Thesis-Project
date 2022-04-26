@@ -12,6 +12,7 @@ import re
 import numpy as np
 import random
 import time
+import gc
 
 # User defined imports
 import config
@@ -185,6 +186,31 @@ def add_run_args(parser: argparse.PARSER):
     return parser
 
 
+def free_gpu_cache():
+    """
+    Frees GPU cache and collects garbage.
+
+    NOTE: If used, 'GPUtil' and 'numba' needs a pip install first!
+    ```
+    from GPUtil import showUtilization as gpu_usage
+    from numba import cuda
+    ```
+    """
+    # tqdm.write("Initial GPU Usage")
+    # gpu_usage()
+
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    # The following craches
+    # cuda.select_device(0)
+    # cuda.close()
+    # cuda.select_device(0)
+
+    # tqdm.write("GPU Usage after emptying the cache")
+    # gpu_usage()
+
+
 def train_main(
     device: str,
     models_to_train: List[Model],
@@ -263,6 +289,8 @@ def train_main(
             f"> {str(model_tr)} done! Took: {timer(s_time, time.time())}",
             display_console=False,
         )
+
+        free_gpu_cache()
 
 
 def validation_main(
