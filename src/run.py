@@ -13,6 +13,7 @@ import numpy as np
 import random
 import time
 import gc
+from torchinfo import summary
 
 # User defined imports
 import config
@@ -27,6 +28,9 @@ from train import train
 from validate import validate_model
 from eval import calc_test_acc_loss, calc_test_psds
 from predict import predict
+
+from models.baseline import NeuralNetwork as baseline
+from models.model_extensions_3.b_ks33_l22_gru_2 import NeuralNetwork as b_ks33_l22_gru_2
 
 # Use cuda if available, exit otherwise.
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -183,6 +187,18 @@ def add_run_args(parser: argparse.PARSER):
         action="store_true",
         help=("The instructions for what to plot will be given at a later time."),
     )
+    # SNR arguments
+    parser.add_argument(
+        "-snr_values",
+        "--snr_db_values",
+        type=int,
+        nargs="+",
+        default=[],
+        help=(
+            "List of SNR values to train and validate with. "
+            + "If unspecified, no white noise will be added."
+        ),
+    )
     return parser
 
 
@@ -214,11 +230,13 @@ def free_gpu_cache():
 def train_main(
     device: str,
     models_to_train: List[Model],
+    DS_train_basepath: Path,
     log: Logger,
     DS_train_loader: DataLoader,
     DS_train: Dataset,
     len_tr: int,
     criterion: loss._Loss,
+    SNR_DB: torch.Tensor,
 ):
     if not models_to_train:
         log.info("No models to train.")
@@ -246,9 +264,7 @@ def train_main(
         start_epoch = 1
         end_epoch = config.EPOCHS
         # Model Paths for saving model during training
-        model_basepath = create_basepath(
-            Path(config.SAVED_MODELS_DIR) / str(DS_train) / str(model_tr) / "train"
-        )
+        model_basepath = create_basepath(DS_train_basepath / str(model_tr) / "train")
 
         # Prerequisite: All sample rates within a dataset must be equal (or resampled
         # at dataset level) but may differ between datasets.
@@ -283,6 +299,7 @@ def train_main(
             scheduler,
             log,
             model_basepath,
+            SNR_DB,
         )
         tqdm.write(f"> {str(model_tr)} done! Took: {timer(s_time, time.time())}")
         log.info(
@@ -302,6 +319,7 @@ def validation_main(
     DS_val_loader: DataLoader,
     DS_val: Dataset,
     len_val: int,
+    SNR_DB: torch.Tensor,
     operating_points: np.ndarray = config.OPERATING_POINTS,
 ):
     log.info("Validation", add_header=True)
@@ -341,6 +359,7 @@ def validation_main(
             DS_val_loader,
             DS_val,
             len_val,
+            SNR_DB,
             operating_points,
         )
         tqdm.write(f"> {str(picked_model)} done! Took: {timer(s_time, time.time())}")
@@ -511,18 +530,15 @@ def plot_main(
 
 
 def run(
+    parser_run,
+    args_run,
+    SNR_DB,
     params_DS_train: Dict = config.DESED_SYNTH_TRAIN_ARGS,
     params_DS_val: Dict = config.DESED_SYNTH_VAL_ARGS,
     params_DS_test: Dict = config.DESED_PUBLIC_EVAL_ARGS,
     params_DS_preds: Dict = config.CUSTOM_ARGS,
+    picked_models: List[Model] = [],
 ):
-    ### Instantiate parser ###
-    parser_run = argparse.ArgumentParser(
-        description="Which models to train/evaluate are specified in the next step. "
-        "All other parameters are specified in 'config.py'"
-    )
-    parser_run = add_run_args(parser_run)
-    args_run = parser_run.parse_args()
 
     if not (0.0 <= args_run.op_threshold and args_run.op_threshold <= 1.0):
         parser_run.error("'op_threshold' must be in range 0-1.")
@@ -546,7 +562,8 @@ def run(
     DM = DatasetManager()
 
     # Terminal interface to choose which models to proceed with
-    picked_models = pick_multiple_models(MODELS)
+    if not picked_models:
+        picked_models = pick_multiple_models(MODELS)
 
     # Fetching training dataset name
     DS_train_name = params_DS_train["name"]
@@ -569,7 +586,11 @@ def run(
     log_path = create_basepath(Path(config.LOG_DIR)) / filename
     log = Logger("RUN-Logger", log_path)
 
-    DS_train_basepath = Path(config.SAVED_MODELS_DIR) / DS_train_name
+    DS_train_basepath = Path(config.SAVED_MODELS_DIR) / (
+        str(DS_train_name) + "_SNR" + str(SNR_DB.item())
+        if SNR_DB
+        else str(DS_train_name)
+    )
 
     # Force retraining of all models from 'picked_models'
     if args_run.force_retrain:
@@ -610,11 +631,13 @@ def run(
         train_main(
             device,
             models_to_train,
+            DS_train_basepath,
             log,
             DS_train_loader,
             DS_train,
             len(DS_train),
             criterion,
+            SNR_DB,
         )
 
     ### Validation ###
@@ -622,6 +645,7 @@ def run(
         # Load DESED Synthetic Validation dataset
         DS_val_loader = DM.load_dataset(**params_DS_val)
         DS_val = DM.get_dataset(params_DS_val["name"])
+
         validation_main(
             device,
             picked_models,
@@ -631,6 +655,7 @@ def run(
             DS_val_loader,
             DS_val,
             len(DS_val),
+            SNR_DB,
             config.OPERATING_POINTS,
         )
 
@@ -679,10 +704,40 @@ def run(
 
 
 if __name__ == "__main__":
-    run(
-        params_DS_train=config.DESED_SYNTH_TRAIN_ARGS,
-        params_DS_val=config.DESED_SYNTH_VAL_ARGS,
-        # params_DS_val = config.DESED_REAL_ARGS,
-        params_DS_test=config.DESED_PUBLIC_EVAL_ARGS,
-        params_DS_preds=config.CUSTOM_ARGS,
+    ### Instantiate parser ###
+    parser_run = argparse.ArgumentParser(
+        description="Which models to train/evaluate are specified in the next step. "
+        "All other parameters are specified in 'config.py'"
     )
+    parser_run = add_run_args(parser_run)
+    args_run = parser_run.parse_args()
+
+    picked_models = [
+        Model("baseline", baseline),
+        Model("b_ks33_l22_gru_2", b_ks33_l22_gru_2),
+    ]
+
+    if args_run.snr_db_values:
+        for SNR_DB in args_run.snr_db_values:
+            run(
+                parser_run,
+                args_run,
+                torch.tensor(SNR_DB),
+                params_DS_train=config.DESED_SYNTH_TRAIN_ARGS,
+                params_DS_val=config.DESED_SYNTH_VAL_ARGS,
+                # params_DS_val = config.DESED_REAL_ARGS,
+                params_DS_test=config.DESED_PUBLIC_EVAL_ARGS,
+                params_DS_preds=config.CUSTOM_ARGS,
+                picked_models=picked_models,
+            )
+    else:
+        run(
+            parser_run,
+            args_run,
+            None,
+            params_DS_train=config.DESED_SYNTH_TRAIN_ARGS,
+            params_DS_val=config.DESED_SYNTH_VAL_ARGS,
+            # params_DS_val = config.DESED_REAL_ARGS,
+            params_DS_test=config.DESED_PUBLIC_EVAL_ARGS,
+            params_DS_preds=config.CUSTOM_ARGS,
+        )

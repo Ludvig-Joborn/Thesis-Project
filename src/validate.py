@@ -52,6 +52,7 @@ def te_val_batches(
     len_data: int,
     model: Module,
     criterion: loss._Loss,
+    SNR_DB: torch.Tensor,
     testing: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
     """
@@ -93,7 +94,7 @@ def te_val_batches(
             labels = labels.to(device, non_blocking=True)
 
             # forward + loss
-            outputs = model.forward(waveform, sample_rate)
+            outputs = model.forward(waveform, sample_rate, SNR_DB)
             loss = criterion(outputs, labels)
 
             # Add file id to tensor (used for getting filenames later)
@@ -130,6 +131,7 @@ def validate_model(
     DS_val_loader: DataLoader,
     DS_val: Dataset,
     len_val: int,
+    SNR_DB: torch.Tensor,
     operating_points: np.ndarray = config.OPERATING_POINTS,
 ):
     """
@@ -162,7 +164,7 @@ def validate_model(
 
         ##### Model validation #####
         output_table, label_table, file_ids, val_loss = te_val_batches(
-            device, DS_val_loader, len_val, model, criterion, testing=False
+            device, DS_val_loader, len_val, model, criterion, SNR_DB, testing=False
         )
 
         val_losses.append(val_loss)

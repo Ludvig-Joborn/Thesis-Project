@@ -227,6 +227,11 @@ PSDS_PARAMS = {
 MIN_DETECTION_INTERVAL_SEC = 0.8
 
 
+######################
+### GAUSSIAN NOISE ###
+######################
+SIGNAL_TO_NOISE_RATIO = 10.0
+
 ############
 ### MISC ###
 ############

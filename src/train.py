@@ -22,6 +22,7 @@ def train_batches(
     criterion: loss._Loss,
     optimizer: Optimizer,
     scheduler: lr_scheduler,
+    SNR_DB: torch.Tensor,
 ) -> Tuple[float, float]:
     """
     Runs training batches and updates model weights.
@@ -59,7 +60,7 @@ def train_batches(
         optimizer.zero_grad()
 
         # forward + loss + backward + optimize
-        outputs = model.forward(waveform, sample_rate)
+        outputs = model.forward(waveform, sample_rate, SNR_DB)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -93,6 +94,7 @@ def train(
     scheduler: lr_scheduler,
     log: Logger,
     model_basepath: Path,
+    SNR_DB: torch.Tensor,
 ):
     """
     Trains a model on the given dataset and saves the weights (with the training loss and accuracy).
@@ -112,7 +114,14 @@ def train(
 
         ##### Model batch training #####
         tr_loss, tr_acc = train_batches(
-            device, DS_train_loader, len_tr, model, criterion, optimizer, scheduler
+            device,
+            DS_train_loader,
+            len_tr,
+            model,
+            criterion,
+            optimizer,
+            scheduler,
+            SNR_DB,
         )
 
         ### Log training loss and accuracy ###

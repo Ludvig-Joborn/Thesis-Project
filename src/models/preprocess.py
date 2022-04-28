@@ -23,7 +23,12 @@ class PreProcess(nn.Module):
         # layer that converts waveforms to log mel spectrograms
         self.spec_layer = MelSpectrogram(**PARAMS_TO_MELSPEC)
 
-    def __call__(self, waveform: torch.Tensor, sample_rate: torch.Tensor):
+    def __call__(
+        self,
+        waveform: torch.Tensor,
+        sample_rate: torch.Tensor,
+        SNR_DB: torch.Tensor = None,
+    ):
 
         first_sample_rate = sample_rate[0].tolist()  # CPU operation
 
@@ -36,7 +41,19 @@ class PreProcess(nn.Module):
                 f"Uninitialized sample rate {first_sample_rate} found in dataset"
             )
 
-        waveform_ds = self.sr_resample_table[first_sample_rate](waveform)
+        # Resample waveform
+        waveform = self.sr_resample_table[first_sample_rate](waveform)
 
-        mel_spec = self.spec_layer(waveform_ds)
+        ### Generate white noise
+        if SNR_DB:
+            # Calculate Mean Square for each waveform
+            signal_MS = torch.mean(torch.square(waveform), 1, True)
+            # Calculate standard deviation for the noise for each sample
+            noise_std = torch.sqrt(signal_MS / (10 ** (SNR_DB / 10)))
+            # Generate white noise for each sample
+            noise = torch.mul(torch.randn(waveform.shape, device="cuda"), noise_std)
+            # Insert white noise to waveform
+            waveform = torch.add(waveform, noise)
+
+        mel_spec = self.spec_layer(waveform)
         return torch.unsqueeze(input=mel_spec, dim=1)

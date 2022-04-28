@@ -149,8 +149,10 @@ class NeuralNetwork(nn.Module):
 
         self.sigm = nn.Sigmoid()
 
-    def forward(self, waveform: torch.Tensor, sample_rate: torch.Tensor):
-        mel_spec = self.pre_process(waveform, sample_rate)
+    def forward(
+        self, waveform: torch.Tensor, sample_rate: torch.Tensor, SNR_DB: torch.Tensor
+    ):
+        mel_spec = self.pre_process(waveform, sample_rate, SNR_DB)
 
         conv1 = self.conv1(mel_spec)
         conv2 = self.conv2(conv1)
