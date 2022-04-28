@@ -11,7 +11,7 @@ from tqdm import tqdm
 # User-defined imports
 import config
 from models.model_utils import load_model
-from utils import get_datetime, psd_score
+from utils import get_datetime, psd_score, create_basepath
 from models_dict import Model
 from logger import CustomLogger as Logger
 
@@ -196,10 +196,10 @@ def plot_models(
             plt.legend()
 
     if plots_basepath is not None:
-        path_to_plot = plots_basepath / (
-            f"{get_datetime()}_OP{act_threshold}"
-            f"_DTC{psds_params['dtc_threshold']}_GTC{psds_params['gtc_threshold']}.png"
-        )
+        path_to_plot = create_basepath(
+            plots_basepath
+            / f"DTC{psds_params['dtc_threshold']}_GTC{psds_params['gtc_threshold']}"
+        ) / (f"{get_datetime()}_OP{act_threshold}.png")
         plt.savefig(path_to_plot)
         tqdm.write(f"Plot saved to: {path_to_plot}")
 
