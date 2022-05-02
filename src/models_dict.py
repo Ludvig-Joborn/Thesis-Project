@@ -79,7 +79,7 @@ MODELS = [
     # Model("basic_nn", basic_nn),
     #
     Model("baseline", baseline),
-    # Model("improved_baseline", improved_baseline),
+    Model("improved_baseline", improved_baseline),
     #
     # Model("b2", b2),
     # Model("b2_cbam", b2_cbam),
@@ -104,7 +104,7 @@ MODELS = [
     Model("lstm_1", lstm_1),
     Model("lstm_2_drop01", lstm_2_drop01),
     Model("lstm_3_drop01", lstm_3_drop01),
-    Model("b_ks33_l22_gru_2", b_ks33_l22_gru_2),
+    # Model("b_ks33_l22_gru_2", b_ks33_l22_gru_2),
     Model("b_ks33_l22_gru_2_relu_swish_tr", b_ks33_l22_gru_2_relu_swish_tr),
     Model("b_ks33_l22_gru_2_swish_tr", b_ks33_l22_gru_2_swish_tr),
     # Model("ls_relu", ls_relu),
