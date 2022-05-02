@@ -588,7 +588,7 @@ def run(
 
     DS_train_basepath = Path(config.SAVED_MODELS_DIR) / (
         str(DS_train_name) + "_SNR" + str(SNR_DB.item())
-        if SNR_DB
+        if SNR_DB is not None
         else str(DS_train_name)
     )
 
@@ -714,7 +714,7 @@ if __name__ == "__main__":
 
     picked_models = [
         Model("baseline", baseline),
-        Model("b_ks33_l22_gru_2", b_ks33_l22_gru_2),
+        Model("improved_baseline", b_ks33_l22_gru_2),
     ]
 
     if args_run.snr_db_values:
