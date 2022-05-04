@@ -87,6 +87,7 @@ EPOCHS = 20
 
 # model name: validation model basepaths
 SNRS = [20, 15, 10, 5, 0, -5, -10]
+SNRS = [30]
 MODLES = ["baseline", "improved_baseline"]  # NOTE: must have these names!
 val_end_string = "validation/DESED_Synthetic_Validation"
 TO_EVAL = {
@@ -96,8 +97,9 @@ TO_EVAL = {
     for snr in SNRS
     for model in MODLES
 }
-for m in MODLES:
-    TO_EVAL[m] = Path(f"{DS_train_basestring}/{m}/{val_end_string}")
+if False:  # Add baseline and imp.bs. without SNR
+    for m in MODLES:
+        TO_EVAL[m] = Path(f"{DS_train_basestring}/{m}/{val_end_string}")
 
 
 for psds_pars in tqdm([0.1, 0.7], desc="PSDS pars", position=0, leave=False):

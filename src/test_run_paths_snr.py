@@ -44,8 +44,8 @@ from models.model_utils import activation
 params_DS_train = config.DESED_SYNTH_TRAIN_ARGS
 
 # NOTE: Select test dataset
-params_DS_test = config.DESED_PUBLIC_EVAL_ARGS
 params_DS_test = config.DESED_REAL_ARGS
+params_DS_test = config.DESED_PUBLIC_EVAL_ARGS
 
 DM = DatasetManager()
 DS_train_name = config.DESED_SYNTH_TRAIN_ARGS["name"]
@@ -58,7 +58,7 @@ sample_rates.add(DS_test.get_sample_rate())
 
 device = "cuda"
 
-# NOTE: WRITE THIS (you can use the file 'get_best_epochs.py')
+# NOTE: WRITE/CHECK THIS (you can use the file 'get_best_epochs.py')
 # MODEL: BEST_EPOCH
 DICT_01 = {
     Model("baseline", baseline): 12,
@@ -96,9 +96,18 @@ DICT_07 = {
     Model("baseline_SNR-10", baseline): 16,
     Model("improved_baseline_SNR-10", improved_baseline): 19,
 }
+
+DICT_01 = {
+    Model("baseline_SNR30", baseline): 10,
+    Model("improved_baseline_SNR30", improved_baseline): 8,
+}
+DICT_07 = {
+    Model("baseline_SNR30", baseline): 4,
+    Model("improved_baseline_SNR30", improved_baseline): 16,
+}
+
 # Loss function
 criterion = nn.BCELoss()
-
 
 PSDS_PARAMS_01 = {
     "duration_unit": "hour",
@@ -291,7 +300,8 @@ def calc_test_psds_TEMP(
 
 
 # SNRS = [-10, -5, 0, 5, 10, 15, 20]
-SNRS = [20, 15, 10, 5, 0, -5, -10]
+# SNRS = [20, 15, 10, 5, 0, -5, -10]
+SNRS = [30]
 MODLES = ["baseline", "improved_baseline"]  # NOTE: must have these names!
 
 DS_train_basestring = str(config.SAVED_MODELS_DIR) + "/" + str(DS_train_name)
