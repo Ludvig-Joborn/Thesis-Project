@@ -80,7 +80,7 @@ def get_val_model_values(
     log: Logger,
     act_threshold: float = config.ACT_THRESHOLD,
     DS_val: Dataset = None,
-    psds_params: Dict = config.PSDS_PARAMS,
+    psds_params: Dict = config.PSDS_PARAMS_01,
     operating_points: np.ndarray = config.OPERATING_POINTS,
 ) -> Dict[str, Dict[str, List]]:
     """
@@ -149,7 +149,7 @@ def plot_models(
     epochs: int = config.EPOCHS,
     act_threshold: float = config.ACT_THRESHOLD,
     DS_val: Dataset = None,
-    psds_params: Dict = config.PSDS_PARAMS,
+    psds_params: Dict = config.PSDS_PARAMS_01,
     operating_points: np.ndarray = config.OPERATING_POINTS,
     plots_basepath: Path = None,
 ):

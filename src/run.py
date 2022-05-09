@@ -17,6 +17,7 @@ import gc
 # User defined imports
 import config
 from models_dict import MODELS, Model
+from metric_corr import metrics_correlation
 from utils import get_datetime, create_basepath, timer
 from plot_utils import plot_models
 from models.model_utils import load_model, nr_parameters
@@ -182,6 +183,13 @@ def add_run_args(parser: argparse.PARSER):
         "--plot",
         action="store_true",
         help=("The instructions for what to plot will be given at a later time."),
+    )
+    # Metrics correlations
+    parser.add_argument(
+        "-corr",
+        "--metrics_correlation",
+        action="store_true",
+        help=("Calculate and print correlations between metrics."),
     )
     return parser
 
@@ -416,7 +424,7 @@ def test_main(
                 model,
                 criterion,
                 log,
-                config.PSDS_PARAMS,
+                config.PSDS_PARAMS_01,
                 config.OPERATING_POINTS,
                 config.PLOT_PSD_ROC,
                 config.SAVE_PSD_ROC,
@@ -504,7 +512,7 @@ def plot_main(
         config.EPOCHS,
         config.ACT_THRESHOLD,
         DS_val,
-        config.PSDS_PARAMS,
+        config.PSDS_PARAMS_01,
         config.OPERATING_POINTS,
         plots_basepath if config.SAVE_PLOT else None,
     )
@@ -535,6 +543,7 @@ def run(
         and not args_run.force_retrain
         and not args_run.predict
         and not args_run.plot
+        and not args_run.metrics_correlation
     ):
         parser_run.error("Nothing to do (no parameters given). Exiting...")
         exit()
@@ -671,6 +680,17 @@ def run(
         DS_val_loader = DM.load_dataset(**params_DS_val)
         DS_val = DM.get_dataset(params_DS_val["name"])
         plot_main(
+            picked_models,
+            DS_train_basepath,
+            DS_val,
+            log,
+        )
+
+    ### Plots ###
+    if args_run.metrics_correlation:
+        DS_val_loader = DM.load_dataset(**params_DS_val)
+        DS_val = DM.get_dataset(params_DS_val["name"])
+        metrics_correlation(
             picked_models,
             DS_train_basepath,
             DS_val,

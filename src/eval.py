@@ -56,7 +56,7 @@ def calc_test_psds(
     model: Module,
     criterion: loss._Loss,
     log: Logger,
-    psds_params: Dict = config.PSDS_PARAMS,
+    psds_params: Dict = config.PSDS_PARAMS_01,
     operating_points: np.ndarray = config.OPERATING_POINTS,
     plot_psds_roc: bool = config.PLOT_PSD_ROC,
     save_psds_roc: bool = config.SAVE_PSD_ROC,
@@ -80,8 +80,8 @@ def calc_test_psds(
 
     # Strings to log and write to terminal
     str_pars = (
-        f"Parameters: dtc={config.PSDS_PARAMS['dtc_threshold']} "
-        f"| gtc={config.PSDS_PARAMS['gtc_threshold']}"
+        f"Parameters: dtc={config.PSDS_PARAMS_01['dtc_threshold']} "
+        f"| gtc={config.PSDS_PARAMS_01['gtc_threshold']}"
     )
     str_psds = f"PSD-Score: {psds.value:5f}"
     str_fscore = f"F1-Scores:\n{str(fscores)}"

@@ -322,7 +322,7 @@ def psd_score(
         ]
     )
     fscores_dict = psds_eval.get_all_fscores_per_class(
-        cc, alpha_ct=config.PSDS_PARAMS["alpha_ct"]
+        cc, alpha_ct=config.PSDS_PARAMS_01["alpha_ct"]
     )
 
     fscores = pd.DataFrame.from_dict(fscores_dict, orient="columns")

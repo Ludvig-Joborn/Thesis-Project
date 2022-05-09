@@ -208,7 +208,7 @@ SAVE_PSD_ROC = True
 N_THRESHOLD = 50
 OPERATING_POINTS = np.linspace(0.01, 0.99, N_THRESHOLD)
 
-PSDS_PARAMS = {
+PSDS_PARAMS_01 = {
     "duration_unit": "hour",
     "dtc_threshold": 0.1,
     "gtc_threshold": 0.1,
@@ -217,7 +217,15 @@ PSDS_PARAMS = {
     "alpha_st": 0.0,
     "max_efpr": 100,  # Max eFPR per minute. Set to follow DCASE numbers.
 }
-
+PSDS_PARAMS_07 = {
+    "duration_unit": "hour",
+    "dtc_threshold": 0.7,
+    "gtc_threshold": 0.7,
+    "cttc_threshold": 0.1,
+    "alpha_ct": 0.0,
+    "alpha_st": 0.0,
+    "max_efpr": 100,  # Max eFPR per minute. Set to follow DCASE numbers.
+}
 
 ##################
 ### PREDICTION ###
