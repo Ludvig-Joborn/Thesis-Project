@@ -34,7 +34,6 @@ def train_batches(
     correct_tr = torch.zeros(-(len_tr // -config.BATCH_SIZE)).to(
         device, non_blocking=True
     )
-    total_tr = 0
 
     # Set model state to training
     model.train()
@@ -67,13 +66,13 @@ def train_batches(
         # Track statistics
         loss = loss.detach()
         training_loss += loss
-        correct_tr[i], total_i = calc_nr_correct_predictions(
+        correct_tr[i], _ = calc_nr_correct_predictions(
             activation(outputs, config.ACT_THRESHOLD), labels
         )
-        total_tr += total_i
 
-    tr_loss = float(training_loss.item() / total_tr)
-    tr_acc = float(correct_tr.sum().item() / total_tr)
+    total_nr_outputs = len_tr * config.N_MELSPEC_FRAMES
+    tr_loss = float(training_loss.item())
+    tr_acc = float(correct_tr.sum().item() / total_nr_outputs)
 
     # Update learning rate
     scheduler.step()
