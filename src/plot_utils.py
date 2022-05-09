@@ -7,6 +7,7 @@ from typing import Callable, List, Dict
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+import math
 
 # User-defined imports
 import config
@@ -190,9 +191,13 @@ def plot_models(
         for model_name, values in plot_vals.items():
             plt.subplot(plot_grid[0], plot_grid[1], i + 1)
             plt.plot(x, values[wtp.value[0]], **plot_params, label=model_name)
+
+            # Force x-axis to use integers
+            plt.xticks(range(math.floor(min(x)), math.ceil(max(x)) + 1))
+
+            plt.title(wtp.value[2])
             plt.ylabel(wtp.value[1])
             plt.xlabel("Epoch")
-            plt.title(wtp.value[2])
             plt.legend()
 
     if plots_basepath is not None:
