@@ -7,6 +7,7 @@ from typing import Callable, List, Dict
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+import math
 
 # User-defined imports
 import config
@@ -188,11 +189,20 @@ def plot_models(
     x = range(1, epochs + 1)
     for i, wtp in enumerate(what_to_plot):
         for model_name, values in plot_vals.items():
+            _vals = values[wtp.value[0]]
+
+            if wtp.name == config.PLOT_MODES.TR_LOSS.name:
+                _vals = [10000 * 157 * x for x in _vals]
+
             plt.subplot(plot_grid[0], plot_grid[1], i + 1)
-            plt.plot(x, values[wtp.value[0]], **plot_params, label=model_name)
+            plt.plot(x, _vals, **plot_params, label=model_name)
+
+            # Force x-axis to use integers
+            plt.xticks(range(math.floor(min(x)), math.ceil(max(x)) + 1))
+
+            plt.title(wtp.value[2])
             plt.ylabel(wtp.value[1])
             plt.xlabel("Epoch")
-            plt.title(wtp.value[2])
             plt.legend()
 
     if plots_basepath is not None:
