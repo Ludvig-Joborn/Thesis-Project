@@ -44,8 +44,8 @@ from models.model_utils import activation
 params_DS_train = config.DESED_SYNTH_TRAIN_ARGS
 
 # NOTE: Select test dataset
-params_DS_test = config.DESED_REAL_ARGS
 params_DS_test = config.DESED_PUBLIC_EVAL_ARGS
+params_DS_test = config.DESED_REAL_ARGS
 
 DM = DatasetManager()
 DS_train_name = config.DESED_SYNTH_TRAIN_ARGS["name"]
@@ -63,6 +63,8 @@ device = "cuda"
 DICT_01 = {
     Model("baseline", baseline): 12,
     Model("improved_baseline", improved_baseline): 10,
+    Model("baseline_SNR30", baseline): 10,
+    Model("improved_baseline_SNR30", improved_baseline): 8,
     Model("baseline_SNR20", baseline): 9,
     Model("improved_baseline_SNR20", improved_baseline): 15,
     Model("baseline_SNR15", baseline): 13,
@@ -81,6 +83,8 @@ DICT_01 = {
 DICT_07 = {
     Model("baseline", baseline): 11,
     Model("improved_baseline", improved_baseline): 16,
+    Model("baseline_SNR30", baseline): 4,
+    Model("improved_baseline_SNR30", improved_baseline): 16,
     Model("baseline_SNR20", baseline): 7,
     Model("improved_baseline_SNR20", improved_baseline): 7,
     Model("baseline_SNR15", baseline): 13,
@@ -97,14 +101,24 @@ DICT_07 = {
     Model("improved_baseline_SNR-10", improved_baseline): 19,
 }
 
+
 DICT_01 = {
-    Model("baseline_SNR30", baseline): 10,
-    Model("improved_baseline_SNR30", improved_baseline): 8,
+    Model("baseline_SNR-15", baseline): 20,
+    Model("improved_baseline_SNR-15", improved_baseline): 18,
+    Model("baseline_SNR-20", baseline): 19,
+    Model("improved_baseline_SNR-20", improved_baseline): 12,
+    # Model("baseline_SNR-30", baseline): 16,
+    # Model("improved_baseline_SNR-30", improved_baseline): 18,
 }
 DICT_07 = {
-    Model("baseline_SNR30", baseline): 4,
-    Model("improved_baseline_SNR30", improved_baseline): 16,
+    Model("baseline_SNR-15", baseline): 19,
+    Model("improved_baseline_SNR-15", improved_baseline): 17,
+    Model("baseline_SNR-20", baseline): 15,
+    Model("improved_baseline_SNR-20", improved_baseline): 11,
+    # Model("baseline_SNR-30", baseline): 16,
+    # Model("improved_baseline_SNR-30", improved_baseline): 14,
 }
+
 
 # Loss function
 criterion = nn.BCELoss()
@@ -301,7 +315,10 @@ def calc_test_psds_TEMP(
 
 # SNRS = [-10, -5, 0, 5, 10, 15, 20]
 # SNRS = [20, 15, 10, 5, 0, -5, -10]
+# NOTE: -30 crashes -> 'KeyError: 0.49', 'A similar operating point exists, skipping this one'
 SNRS = [30]
+SNRS = [-15, -20]
+
 MODLES = ["baseline", "improved_baseline"]  # NOTE: must have these names!
 
 DS_train_basestring = str(config.SAVED_MODELS_DIR) + "/" + str(DS_train_name)
@@ -392,10 +409,10 @@ _cols = [
     "F1-Score-1",
     "PSD-Score-2",
     "F1-Score-2",
-    "Total",
+    "Ranking Score",
 ]
 pandas_res = pd.DataFrame(_list, columns=_cols)  # .sort_values(
-#     axis=0, by=["Total"], ascending=False
+#     axis=0, by=["Ranking Score"], ascending=False
 # )
 print(str(pandas_res))
 print()

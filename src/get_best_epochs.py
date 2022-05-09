@@ -23,6 +23,9 @@ from models.model_utils import load_model
 from utils import psd_score
 
 
+# Ignore warnings
+warnings.simplefilter("ignore", UserWarning)
+
 #
 DS_train_name = config.DESED_SYNTH_TRAIN_ARGS["name"]
 DS_train_basestring = str(config.SAVED_MODELS_DIR) + "/" + str(DS_train_name)
@@ -88,6 +91,7 @@ EPOCHS = 20
 # model name: validation model basepaths
 SNRS = [20, 15, 10, 5, 0, -5, -10]
 SNRS = [30]
+SNRS = [-15, -20, -30]
 MODLES = ["baseline", "improved_baseline"]  # NOTE: must have these names!
 val_end_string = "validation/DESED_Synthetic_Validation"
 TO_EVAL = {

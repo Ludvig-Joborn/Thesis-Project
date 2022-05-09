@@ -35,8 +35,13 @@ D_EVAL = OrderedDict(
         "improved baseline SNR -5": 0.654660,
         "baseline SNR -10": 0.290611,
         "improved baseline SNR -10": 0.845532,
+        "baseline SNR -15": 0.558849,
+        "improved baseline SNR -15": 0.704291,
+        "baseline SNR -20": 0.386167,
+        "improved baseline SNR -20": 0.540506,
     }
 )
+
 
 # DESED Real
 D_REAL = OrderedDict(
@@ -59,10 +64,15 @@ D_REAL = OrderedDict(
         "improved baseline SNR -5": 0.594333,
         "baseline SNR -10": 0.200537,
         "improved baseline SNR -10": 0.703042,
+        "baseline SNR -15": 0.561421,
+        "improved baseline SNR -15": 0.679193,
+        "baseline SNR -20": 0.529542,
+        "improved baseline SNR -20": 0.582422,
     }
 )
 
-SNRS = ["Unmodified", 30, 20, 15, 10, 5, 0, -5, -10]
+
+SNRS = ["Unmodified", 30, 20, 15, 10, 5, 0, -5, -10, -15, -20]
 
 
 def plot_models(D_, title):
