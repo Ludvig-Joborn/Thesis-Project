@@ -27,6 +27,7 @@ import warnings
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 import collections
+import math
 
 # User-defined imports
 import config
@@ -36,6 +37,7 @@ from models.model_utils import *
 from eval import *
 from utils import timer
 import time
+from utils import create_basepath
 
 # Ignore warnings
 warnings.simplefilter("ignore", UserWarning)
@@ -113,6 +115,7 @@ PSDS_PARAMS_07 = {
 
 OP_THRESHOLD = 0.5
 EPOCHS = 20
+SAVE_PLOTS_TO_PATH = Path("C:/Users/Forensic/Downloads/Results/SRs")
 
 
 def _G_(val_model_basepath, PSDS_PARAMS=PSDS_PARAMS_01):
@@ -174,7 +177,6 @@ for SR in tqdm(SRs, desc="SR", position=0):
     plot_vals_01_imp_bs[f"improved_baseline_{SR}"] = values_all_epochs_01_imp_bs
     plot_vals_07_imp_bs[f"improved_baseline_{SR}"] = values_all_epochs_07_imp_bs
 
-
 print(f"Took: {timer(s_time, time.time())}")
 
 
@@ -195,7 +197,8 @@ def plot_models(what_to_plot: List[config.PLOT_MODES], plot_vals, title):
         "markersize": 4,
     }
     plt.style.use("ggplot")
-    plt.figure(title, figsize=(18, 10))
+    # plt.figure(title, figsize=(18, 10))
+    plt.figure(title, figsize=(9, 12))
 
     # Determine plot-grid
     if len(what_to_plot) == 1:
@@ -207,23 +210,80 @@ def plot_models(what_to_plot: List[config.PLOT_MODES], plot_vals, title):
     x = range(1, EPOCHS + 1)
     for i, wtp in enumerate(what_to_plot):
         for model_name, list_of_dicts in plot_vals.items():
-            # print("list_of_dicts\n", list_of_dicts)
             values = di_c_T(list_of_dicts)
-            # print("values\n", values)
+
+            _vals = values[wtp.value[0]]
+            if wtp.name == config.PLOT_MODES.TR_LOSS.name:
+                _vals = [10000 * 157 * x for x in _vals]
+
             plt.subplot(plot_grid[0], plot_grid[1], i + 1)
-            plt.plot(list(x), values[wtp.value[0]], **plot_params, label=model_name)
+            plt.plot(x, _vals, **plot_params, label=model_name)
+
+            # Force x-axis to use integers
+            plt.xticks(range(math.floor(min(x)), math.ceil(max(x)) + 1))
+
+            plt.title(wtp.value[2])
             plt.ylabel(wtp.value[1])
             plt.xlabel("Epoch")
-            plt.title(wtp.value[2])
             plt.legend()
 
-    plt.show()
+    # plt.show()
+    path_to_plot = create_basepath(SAVE_PLOTS_TO_PATH) / f"{title}_OP{OP_THRESHOLD}.pdf"
+    plt.savefig(path_to_plot)
+    print(f"Plot {title} saved to: \n{path_to_plot}")
 
 
-plot_models(WHAT_TO_PLOT, plot_vals_01_bs, "PSDS 0.1")
+###############
+### Results ###
+###############
 
-plot_models(WHAT_TO_PLOT, plot_vals_07_bs, "PSDS 0.7")
+### Baseline ###
+# Training
+plot_models(
+    [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
+    plot_vals_01_bs,
+    "baseline_tr_acc_loss",
+)
+# Validation
+plot_models(
+    [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
+    plot_vals_01_bs,
+    "baseline_val_acc_loss",
+)
+# PSDS + F1-Score
+plot_models(
+    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+    plot_vals_01_bs,
+    "baseline_PSDS01",
+)
+plot_models(
+    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+    plot_vals_07_bs,
+    "baseline_PSDS07",
+)
 
-plot_models(WHAT_TO_PLOT, plot_vals_01_imp_bs, "PSDS 0.1")
 
-plot_models(WHAT_TO_PLOT, plot_vals_07_imp_bs, "PSDS 0.7")
+### Improved Baseline ###
+# Training
+plot_models(
+    [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
+    plot_vals_01_imp_bs,
+    "improved_baseline_tr_acc_loss",
+)
+# Validation
+plot_models(
+    [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
+    plot_vals_01_imp_bs,
+    "improved_baseline_val_acc_loss",
+)
+# PSDS + F1-Score
+plot_models(
+    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+    plot_vals_01_imp_bs,
+    "improved_baseline_PSDS01",
+)
+plot_models(
+    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+    plot_vals_07_imp_bs,
+    "improved_baseline_PSDS07",
+)

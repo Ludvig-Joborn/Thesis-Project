@@ -88,22 +88,41 @@ def get_PSDS_best_epoch(val_model_basepath, PSDS_PARAMS=PSDS_PARAMS_01):
 MIN_EPOCHS = 2  # Save best epoch from 3 epochs and forward
 EPOCHS = 20
 
-# model name: validation model basepaths
-SNRS = [20, 15, 10, 5, 0, -5, -10]
-SNRS = [30]
-SNRS = [-15, -20, -30]
-MODLES = ["baseline", "improved_baseline"]  # NOTE: must have these names!
-val_end_string = "validation/DESED_Synthetic_Validation"
-TO_EVAL = {
-    f"{model}_SNR{snr}": Path(
-        f"{DS_train_basestring}_SNR{snr}/{model}/{val_end_string}"
-    )
-    for snr in SNRS
-    for model in MODLES
-}
-if False:  # Add baseline and imp.bs. without SNR
-    for m in MODLES:
-        TO_EVAL[m] = Path(f"{DS_train_basestring}/{m}/{val_end_string}")
+DO_SNR = False
+
+if DO_SNR:  # SNRs
+    # model name: validation model basepaths
+    SNRS = [20, 15, 10, 5, 0, -5, -10]
+    SNRS = [30]
+    SNRS = [-15, -20, -30]
+    MODLES = ["baseline", "improved_baseline"]  # NOTE: must have these names!
+    val_end_string = "validation/DESED_Synthetic_Validation"
+    TO_EVAL = {
+        f"{model}_SNR{snr}": Path(
+            f"{DS_train_basestring}_SNR{snr}/{model}/{val_end_string}"
+        )
+        for snr in SNRS
+        for model in MODLES
+    }
+    if False:  # Add baseline and imp.bs. without SNR
+        for m in MODLES:
+            TO_EVAL[m] = Path(f"{DS_train_basestring}/{m}/{val_end_string}")
+
+if not DO_SNR:  # SRs
+    TO_EVAL = {}
+    SRs = [8000, 16000, 22050, 44100]
+    for SR in SRs:
+        p_bs = Path(
+            f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/baseline"
+        )
+        p_imp_bs = Path(
+            f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/improved_baseline"
+        )
+        val_model_basepath_bs = p_bs / "validation" / str(DS_val)
+        val_model_basepath_imp_bs = p_imp_bs / "validation" / str(DS_val)
+
+        TO_EVAL[f"baseline_{SR}"] = val_model_basepath_bs
+        TO_EVAL[f"improved_baseline_{SR}"] = val_model_basepath_imp_bs
 
 
 for psds_pars in tqdm([0.1, 0.7], desc="PSDS pars", position=0, leave=False):
@@ -114,5 +133,10 @@ for psds_pars in tqdm([0.1, 0.7], desc="PSDS pars", position=0, leave=False):
         TO_EVAL.items(), desc="model", position=1, leave=False
     ):
         epoch = get_PSDS_best_epoch(path_, psds_params)
-        tqdm.write(f'\tModel("{model_name}", {model_name.split("_SNR")[0]}): {epoch},')
+        if DO_SNR:
+            tqdm.write(
+                f'\tModel("{model_name}", {model_name.split("_SNR")[0]}): {epoch},'
+            )
+        else:
+            tqdm.write(f'\tModel("{model_name}", {model_name.split("_")[0]}): {epoch},')
     tqdm.write("}")

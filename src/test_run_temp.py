@@ -42,7 +42,10 @@ from models.model_utils import activation
 
 
 params_DS_train = config.DESED_SYNTH_TRAIN_ARGS
+
+# NOTE:
 params_DS_test = config.DESED_PUBLIC_EVAL_ARGS
+params_DS_test = config.DESED_REAL_ARGS
 
 DM = DatasetManager()
 DS_train_name = config.DESED_SYNTH_TRAIN_ARGS["name"]
@@ -77,6 +80,38 @@ DICT_07 = {
     Model("b_ks33_l22_gru_2", b_ks33_l22_gru_2): 16,
     Model("swish", swish): 18,
 }
+# NOTE:
+DICT_01 = {
+    Model("baseline_8000", baseline): 5,
+    Model("improved_baseline_8000", improved_baseline): 14,
+    Model("baseline_16000", baseline): 12,
+    Model("improved_baseline_16000", improved_baseline): 10,
+    Model("baseline_22050", baseline): 10,
+    Model("improved_baseline_22050", improved_baseline): 8,
+    Model("baseline_44100", baseline): 10,
+    Model("improved_baseline_44100", improved_baseline): 11,
+}
+DICT_07 = {
+    Model("baseline_8000", baseline): 16,
+    Model("improved_baseline_8000", improved_baseline): 7,
+    Model("baseline_16000", baseline): 11,
+    Model("improved_baseline_16000", improved_baseline): 16,
+    Model("baseline_22050", baseline): 9,
+    Model("improved_baseline_22050", improved_baseline): 8,
+    Model("baseline_44100", baseline): 6,
+    Model("improved_baseline_44100", improved_baseline): 11,
+}
+
+
+DICT_01 = {
+    Model("baseline", baseline): 12,
+    Model("improved_baseline", improved_baseline): 10,
+}
+DICT_07 = {
+    Model("baseline", baseline): 11,
+    Model("improved_baseline", improved_baseline): 16,
+}
+
 # Loss function
 criterion = nn.BCELoss()
 
@@ -169,30 +204,14 @@ def get_detection_table_TEMP(
     # Partially define function
     func = partial(outrow_to_detections, output_table, file_ids, dataset)
     # Get number of available CPUs (NOTE: lower this number if crash!)
-    nb_workers = psutil.cpu_count(logical=False)
+    # nb_workers = psutil.cpu_count(logical=False)
     # Instantiate a pool of workers and make an iterable imap
-
-    if nb_workers > 10:
-        nb_workers -= 8
-
     nb_workers = 1
-    # tqdm.write(f"nb_workers: {nb_workers}")
-
     pool = multiprocessing.Pool(nb_workers)
     it = pool.imap_unordered(func, operating_points)
 
     # Generate table of detections with operating_points as keys, utilizing multiprocess.
-    for op_index, op_detections in enumerate(
-        it
-        # tqdm(
-        #     it,
-        #     desc="Generating detection intervals",
-        #     leave=False,
-        #     position=1 if testing else 2,
-        #     colour=config.TQDM_BATCHES,
-        #     total=len(operating_points),
-        # )
-    ):
+    for op_index, op_detections in enumerate(it):
         cols = ["event_label", "onset", "offset", "filename"]
         op_tables[operating_points[op_index]] = pd.DataFrame(
             op_detections, columns=cols
@@ -218,12 +237,9 @@ def calc_test_psds_TEMP(
     """
     Calculates the test PSD-Score with the parameters specificed in 'psds_params'.
     """
-    # tqdm.write("te_val_batches")
     output_table, file_ids, file_ids, _ = te_val_batches(
         device, DS_test_loader, len_te, model, criterion, testing=True
     )
-    # tqdm.write("te_val_batches done")
-    # tqdm.write("get_detection_table_TEMP")
     ### PSDS and F1-Score ###
     operating_points_table = get_detection_table_OLD(
         # output_table, file_ids, operating_points, DS_test, testing=True
@@ -231,30 +247,22 @@ def calc_test_psds_TEMP(
         file_ids,
         DS_test,
     )
-    # tqdm.write("get_detection_table_TEMP done")
-
-    # tqdm.write("psd_score")
     psds, fscores = psd_score(
         operating_points_table,
         DS_test.get_annotations(),
         psds_params,
         operating_points,
     )
-    # tqdm.write("psd_score done")
-
     # Used Fscore
     used_threshold = min(
         operating_points, key=lambda input_list: abs(input_list - act_threshold)
     )
     op_fscore = fscores.loc[used_threshold]["Fscores"]
 
-    # tqdm.write(f"PSD-Score: {psds.value:5f}")
-    # tqdm.write(f"F1-Score:  {op_fscore:5f} | OP: {used_threshold}")
-
     # SAVE
     if save_psds_roc:
         plt.style.use("fast")
-        plot_filepath = model_basepath / f"{get_datetime()}_PSDS_{psds.value:2f}.png"
+        plot_filepath = model_basepath / f"{get_datetime()}_PSDS_{psds.value:2f}.pdf"
         plot_psd_roc(psds, show=False, filename=plot_filepath)
         # tqdm.write(f"PSD-ROC saved to: {plot_filepath}")
 
@@ -267,10 +275,6 @@ def calc_test_psds_TEMP(
 
 
 def func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01):
-    # NOTE: TEMP -- #dict_.items():
-    # picked_model = Model("baseline", baseline)
-    # epoch = 12
-
     for picked_model, epoch in tqdm(
         iterable=dict_.items(),
         desc="Models",
@@ -284,15 +288,27 @@ def func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01):
             device, non_blocking=True
         )
         # load Model state
-        model_path = DS_train_basepath / str(picked_model) / "train" / f"e{epoch}.pt"
+        model_name = str(picked_model)
+
+        # NOTE:
+        SRs = False
+
+        if SRs:
+            model_name = str(picked_model).rsplit("_", 1)[0]
+            SR = str(picked_model).rsplit("_", 1)[1]
+
+        model_path = DS_train_basepath / model_name / "train" / f"e{epoch}.pt"
         state = load_model(model_path)
         # Load state
         model.load_state_dict(state["state_dict"])
 
         # TEST
         model_basepath = create_basepath(
-            DS_train_basepath / str(picked_model) / "test" / str(DS_test)
+            DS_train_basepath / model_name / "test" / str(DS_test)
         )
+        if SRs:
+            model_basepath = create_basepath(model_basepath / SR)
+
         psds_val, fscore_val = calc_test_psds_TEMP(
             OP_THRESHOLD,
             device,
@@ -354,3 +370,4 @@ print()
 # To latex
 res = pandas_res.to_latex(buf=None, index=False)
 print(res)
+print("Dataset: ", str(DS_test))
