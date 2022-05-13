@@ -89,6 +89,8 @@ MIN_EPOCHS = 2  # Save best epoch from 3 epochs and forward
 EPOCHS = 20
 
 DO_SNR = False
+DO_SRs = False
+DO_ME1 = True
 
 if DO_SNR:  # SNRs
     # model name: validation model basepaths
@@ -108,7 +110,7 @@ if DO_SNR:  # SNRs
         for m in MODLES:
             TO_EVAL[m] = Path(f"{DS_train_basestring}/{m}/{val_end_string}")
 
-if not DO_SNR:  # SRs
+if DO_SRs:  # SRs
     TO_EVAL = {}
     SRs = [8000, 16000, 22050, 44100]
     for SR in SRs:
@@ -124,6 +126,17 @@ if not DO_SNR:  # SRs
         TO_EVAL[f"baseline_{SR}"] = val_model_basepath_bs
         TO_EVAL[f"improved_baseline_{SR}"] = val_model_basepath_imp_bs
 
+if DO_ME1:
+    TO_EVAL = {}
+    base_string = (
+        "E:/saved_models/me1/seed_12345/SR16000_lr002_M08_G09/DESED_Synthetic_Training"
+    )
+    val_end_string = "validation/DESED_Synthetic_Validation"
+    b1_kim = Model("Kim-RCRNN", b1_cbam_drop01)
+    b2_park = Model("Park-RCRNN", b2_cbam_drop01)
+    TO_EVAL[b1_kim] = Path(f"{base_string}/{str(b1_kim)}/{val_end_string}")
+    TO_EVAL[b2_park] = Path(f"{base_string}/{str(b2_park)}/{val_end_string}")
+
 
 for psds_pars in tqdm([0.1, 0.7], desc="PSDS pars", position=0, leave=False):
     td_ = "".join(str(psds_pars).split("."))
@@ -133,10 +146,19 @@ for psds_pars in tqdm([0.1, 0.7], desc="PSDS pars", position=0, leave=False):
         TO_EVAL.items(), desc="model", position=1, leave=False
     ):
         epoch = get_PSDS_best_epoch(path_, psds_params)
+
         if DO_SNR:
             tqdm.write(
                 f'\tModel("{model_name}", {model_name.split("_SNR")[0]}): {epoch},'
             )
-        else:
+        elif DO_SRs:
             tqdm.write(f'\tModel("{model_name}", {model_name.split("_")[0]}): {epoch},')
+        elif DO_ME1:
+            if model_name == "Kim-RCRNN":
+                tqdm.write(f'\tModel("{model_name}", b1_cbam_drop01): {epoch},')
+            elif model_name == "Park-RCRNN":
+                tqdm.write(f'\tModel("{model_name}", b2_cbam_drop01): {epoch},')
+            else:
+                tqdm.write(f'\tModel("{model_name}", None): {epoch},')
+
     tqdm.write("}")

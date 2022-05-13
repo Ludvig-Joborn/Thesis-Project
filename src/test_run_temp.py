@@ -44,17 +44,32 @@ from models.model_utils import activation
 params_DS_train = config.DESED_SYNTH_TRAIN_ARGS
 
 # NOTE:
-params_DS_test = config.DESED_PUBLIC_EVAL_ARGS
-params_DS_test = config.DESED_REAL_ARGS
+params_DS_test_pub = config.DESED_PUBLIC_EVAL_ARGS
+params_DS_test_real = config.DESED_REAL_ARGS
 
 DM = DatasetManager()
-DS_train_name = config.DESED_SYNTH_TRAIN_ARGS["name"]
+DS_train_name = params_DS_train["name"]
 DS_train_basepath = Path(config.SAVED_MODELS_DIR) / DS_train_name
 
-DS_test_loader = DM.load_dataset(**params_DS_test)
-DS_test = DM.get_dataset(params_DS_test["name"])
+DS_train_basepath = Path(
+    "E:/saved_models/me1/seed_12345/SR16000_lr002_M08_G09/DESED_Synthetic_Training"
+)  # NOTE
+
+# Val
+# params_DS_val = config.DESED_SYNTH_VAL_ARGS
+# DS_val_loader = DM.load_dataset(**params_DS_val)
+# DS_val = DM.get_dataset(params_DS_val["name"])
+
+# Test
+DS_test_loader_pub = DM.load_dataset(**params_DS_test_pub)
+DS_test_loader_real = DM.load_dataset(**params_DS_test_real)
+DS_test_pub = DM.get_dataset(params_DS_test_pub["name"])
+DS_test_real = DM.get_dataset(params_DS_test_real["name"])
 sample_rates = set()
-sample_rates.add(DS_test.get_sample_rate())
+# sample_rates.add(DS_val.get_sample_rate())
+sample_rates.add(DS_test_pub.get_sample_rate())
+sample_rates.add(DS_test_real.get_sample_rate())
+
 
 device = "cuda"
 
@@ -110,6 +125,15 @@ DICT_01 = {
 DICT_07 = {
     Model("baseline", baseline): 11,
     Model("improved_baseline", improved_baseline): 16,
+}
+
+DICT_01 = {
+    Model("Kim-RCRNN", b1_cbam_drop01): 13,
+    Model("Park-RCRNN", b2_cbam_drop01): 12,
+}
+DICT_07 = {
+    Model("Kim-RCRNN", b1_cbam_drop01): 18,
+    Model("Park-RCRNN", b2_cbam_drop01): 4,
 }
 
 # Loss function
@@ -274,7 +298,13 @@ def calc_test_psds_TEMP(
     return psds.value, op_fscore
 
 
-def func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01):
+def func_(
+    dict_=DICT_01,
+    psds_params_=PSDS_PARAMS_01,
+    DS_loader=None,
+    DS_=None,
+    sample_rates=None,
+):
     for picked_model, epoch in tqdm(
         iterable=dict_.items(),
         desc="Models",
@@ -304,8 +334,9 @@ def func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01):
 
         # TEST
         model_basepath = create_basepath(
-            DS_train_basepath / model_name / "test" / str(DS_test)
+            DS_train_basepath / model_name / "test" / str(DS_)
         )
+
         if SRs:
             model_basepath = create_basepath(model_basepath / SR)
 
@@ -313,9 +344,9 @@ def func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01):
             OP_THRESHOLD,
             device,
             model_basepath,
-            DS_test_loader,
-            DS_test,
-            len(DS_test),
+            DS_loader,
+            DS_,
+            len(DS_),
             model,
             criterion,
             psds_params_,
@@ -326,48 +357,56 @@ def func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01):
         yield str(picked_model), psds_val, fscore_val
 
 
-# print("### PSDS_PARAMS 0.1 ###")
-it_01 = func_(dict_=DICT_01, psds_params_=PSDS_PARAMS_01)
-res_01 = {
-    model_name: (psds_val, fscore_val) for model_name, psds_val, fscore_val in it_01
-}
+for (_loader, _DS) in [
+    (DS_test_loader_pub, DS_test_pub),
+    (DS_test_loader_real, DS_test_real),
+]:
 
-# print("### PSDS_PARAMS 0.7 ###")
-it_07 = func_(dict_=DICT_07, psds_params_=PSDS_PARAMS_07)
-res_07 = {
-    model_name: (psds_val, fscore_val) for model_name, psds_val, fscore_val in it_07
-}
+    # print("### PSDS_PARAMS 0.1 ###")
+    it_01 = func_(DICT_01, PSDS_PARAMS_01, _loader, _DS, sample_rates)
+    res_01 = {
+        model_name: (psds_val, fscore_val) for model_name, psds_val, fscore_val in it_01
+    }
 
-_list = []
-for model_name, (psds_val_01, fscore_val_01) in res_01.items():
-    psds_val_07 = res_07[model_name][0]
-    fscore_val_07 = res_07[model_name][1]
-    _list.append(
-        [
-            model_name,
-            psds_val_01,
-            fscore_val_01,
-            psds_val_07,
-            fscore_val_07,
-            psds_val_01 + psds_val_07,
-        ]
-    )
+    # print("### PSDS_PARAMS 0.7 ###")
+    it_07 = func_(DICT_07, PSDS_PARAMS_07, _loader, _DS, sample_rates)
+    res_07 = {
+        model_name: (psds_val, fscore_val) for model_name, psds_val, fscore_val in it_07
+    }
 
-_cols = [
-    "Model",
-    "PSD-Score-1",
-    "F1-Score-1",
-    "PSD-Score-2",
-    "F1-Score-2",
-    "Total",
-]
-pandas_res = pd.DataFrame(_list, columns=_cols).sort_values(
-    axis=0, by=["Total"], ascending=False
-)
-print(str(pandas_res))
-print()
+    _list = []
+    for model_name, (psds_val_01, fscore_val_01) in res_01.items():
+        psds_val_07 = res_07[model_name][0]
+        fscore_val_07 = res_07[model_name][1]
+        _list.append(
+            [
+                model_name,
+                psds_val_01,
+                fscore_val_01,
+                psds_val_07,
+                fscore_val_07,
+                psds_val_01 + psds_val_07,
+            ]
+        )
 
-# To latex
-res = pandas_res.to_latex(buf=None, index=False)
-print(res)
-print("Dataset: ", str(DS_test))
+    _cols = [
+        "Model",
+        "PSDS-1",
+        "F1-Score-1",
+        "PSDS-2",
+        "F1-Score-2",
+        "Ranking Score",
+    ]
+    pandas_res = pd.DataFrame(_list, columns=_cols)  # .sort_values(
+    # axis=0, by=["Ranking Score"], ascending=False
+    # )
+    print("-> ### <-")
+    print("Dataset: ", str(_DS))
+    print(str(pandas_res))
+    print()
+
+    # To latex
+    res = pandas_res.to_latex(buf=None, index=False)
+    print("Dataset: ", str(_DS))
+    print(res)
+    print("-> ### <-")

@@ -96,8 +96,23 @@ DICT_07 = {
     Model("swish", swish): 18,
 }
 
+DICT_01 = {
+    Model("Kim-RCRNN", b1_cbam_drop01): 13,
+    Model("Park-RCRNN", b2_cbam_drop01): 12,
+}
+DICT_07 = {
+    Model("Kim-RCRNN", b1_cbam_drop01): 18,
+    Model("Park-RCRNN", b2_cbam_drop01): 4,
+}
+
+
 DS_train_name = config.DESED_SYNTH_TRAIN_ARGS["name"]
+
 DS_train_basepath = Path(config.SAVED_MODELS_DIR) / DS_train_name
+DS_train_basepath = Path(
+    "E:/saved_models/me1/seed_12345/SR16000_lr002_M08_G09/DESED_Synthetic_Training"
+)  # NOTE
+
 
 DM = DatasetManager()
 params_DS_val = config.DESED_SYNTH_VAL_ARGS
@@ -226,11 +241,11 @@ else:
         "F1-Score-1",
         "PSD-Score-2",
         "F1-Score-2",
-        "Total",
+        "Ranking Score",
     ]
-    pandas_res = pd.DataFrame(_list, columns=cols).sort_values(
-        axis=0, by=["Total"], ascending=False
-    )
+    pandas_res = pd.DataFrame(_list, columns=cols)  # .sort_values(
+    #     axis=0, by=["Ranking Score"], ascending=False
+    # )
     print(str(pandas_res))
     print()
 

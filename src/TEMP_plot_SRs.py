@@ -116,6 +116,7 @@ PSDS_PARAMS_07 = {
 OP_THRESHOLD = 0.5
 EPOCHS = 20
 SAVE_PLOTS_TO_PATH = Path("C:/Users/Forensic/Downloads/Results/SRs")
+SAVE_PLOTS_TO_PATH = Path("C:/Users/Forensic/Downloads/Results/ME1-phase1")
 
 
 def _G_(val_model_basepath, PSDS_PARAMS=PSDS_PARAMS_01):
@@ -137,47 +138,83 @@ WHAT_TO_PLOT = [
     config.PLOT_MODES.FSCORE,
 ]
 
-s_time = time.time()
-plot_vals_01_bs = {}
-plot_vals_07_bs = {}
-plot_vals_01_imp_bs = {}
-plot_vals_07_imp_bs = {}
+DO_SRs = False
+DO_ME1 = True
 
-SRs = [8000, 16000, 22050, 44100]
-for SR in tqdm(SRs, desc="SR", position=0):
-    p_bs = Path(
-        f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/baseline"
+if DO_SRs:
+    s_time = time.time()
+    plot_vals_01_bs = {}
+    plot_vals_07_bs = {}
+    plot_vals_01_imp_bs = {}
+    plot_vals_07_imp_bs = {}
+
+    SRs = [8000, 16000, 22050, 44100]
+    for SR in tqdm(SRs, desc="SR", position=0):
+        p_bs = Path(
+            f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/baseline"
+        )
+        p_imp_bs = Path(
+            f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/improved_baseline"
+        )
+        p_imp_bs_ks33_l22_gru_2 = Path(
+            f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/b_ks33_l22_gru_2"
+        )
+
+        # bs
+        val_model_basepath_b1 = p_bs / "validation" / str(DS_val)
+        values_all_epochs_01_b1 = _G_(val_model_basepath_b1, PSDS_PARAMS_01)
+        values_all_epochs_07_b1 = _G_(val_model_basepath_b1, PSDS_PARAMS_07)
+
+        plot_vals_01_bs[f"baseline_{SR}"] = values_all_epochs_01_b1
+        plot_vals_07_bs[f"baseline_{SR}"] = values_all_epochs_07_b1
+
+        if SR == 16000:
+            # imp. bs (b_ks33_l22_gru_2)
+            val_model_basepath_b2 = p_imp_bs_ks33_l22_gru_2 / "validation" / str(DS_val)
+            values_all_epochs_01_b2 = _G_(val_model_basepath_b2, PSDS_PARAMS_01)
+            values_all_epochs_07_b2 = _G_(val_model_basepath_b2, PSDS_PARAMS_07)
+        else:
+            # imp. bs
+            val_model_basepath_b2 = p_imp_bs / "validation" / str(DS_val)
+            values_all_epochs_01_b2 = _G_(val_model_basepath_b2, PSDS_PARAMS_01)
+            values_all_epochs_07_b2 = _G_(val_model_basepath_b2, PSDS_PARAMS_07)
+
+        plot_vals_01_imp_bs[f"improved_baseline_{SR}"] = values_all_epochs_01_b2
+        plot_vals_07_imp_bs[f"improved_baseline_{SR}"] = values_all_epochs_07_b2
+
+    print(f"Took: {timer(s_time, time.time())}")
+
+if DO_ME1:
+    s_time = time.time()
+    plot_vals_01_kim_b1 = {}
+    plot_vals_07_kim_b1 = {}
+    plot_vals_01_park_b2 = {}
+    plot_vals_07_park_b2 = {}
+
+    p_b1 = Path(
+        f"E:/saved_models/me1/seed_12345/SR16000_lr002_M08_G09/{DS_train_name}/Kim-RCRNN"
     )
-    p_imp_bs = Path(
-        f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/improved_baseline"
-    )
-    p_imp_bs_ks33_l22_gru_2 = Path(
-        f"E:/saved_models/seed_12345/SR{SR}_lr002_M08_G09/{DS_train_name}/b_ks33_l22_gru_2"
+    p_b2 = Path(
+        f"E:/saved_models/me1/seed_12345/SR16000_lr002_M08_G09/{DS_train_name}/Park-RCRNN"
     )
 
-    # bs
-    val_model_basepath_bs = p_bs / "validation" / str(DS_val)
-    values_all_epochs_01_bs = _G_(val_model_basepath_bs, PSDS_PARAMS_01)
-    values_all_epochs_07_bs = _G_(val_model_basepath_bs, PSDS_PARAMS_07)
+    # b1
+    val_model_basepath_b1 = p_b1 / "validation" / str(DS_val)
+    values_all_epochs_01_b1 = _G_(val_model_basepath_b1, PSDS_PARAMS_01)
+    values_all_epochs_07_b1 = _G_(val_model_basepath_b1, PSDS_PARAMS_07)
 
-    plot_vals_01_bs[f"baseline_{SR}"] = values_all_epochs_01_bs
-    plot_vals_07_bs[f"baseline_{SR}"] = values_all_epochs_07_bs
+    plot_vals_01_kim_b1["Kim-RCRNN"] = values_all_epochs_01_b1
+    plot_vals_07_kim_b1["Kim-RCRNN"] = values_all_epochs_07_b1
 
-    if SR == 16000:
-        # imp. bs (b_ks33_l22_gru_2)
-        val_model_basepath_imp_bs = p_imp_bs_ks33_l22_gru_2 / "validation" / str(DS_val)
-        values_all_epochs_01_imp_bs = _G_(val_model_basepath_imp_bs, PSDS_PARAMS_01)
-        values_all_epochs_07_imp_bs = _G_(val_model_basepath_imp_bs, PSDS_PARAMS_07)
-    else:
-        # imp. bs
-        val_model_basepath_imp_bs = p_imp_bs / "validation" / str(DS_val)
-        values_all_epochs_01_imp_bs = _G_(val_model_basepath_imp_bs, PSDS_PARAMS_01)
-        values_all_epochs_07_imp_bs = _G_(val_model_basepath_imp_bs, PSDS_PARAMS_07)
+    # b2
+    val_model_basepath_b2 = p_b2 / "validation" / str(DS_val)
+    values_all_epochs_01_b2 = _G_(val_model_basepath_b2, PSDS_PARAMS_01)
+    values_all_epochs_07_b2 = _G_(val_model_basepath_b2, PSDS_PARAMS_07)
 
-    plot_vals_01_imp_bs[f"improved_baseline_{SR}"] = values_all_epochs_01_imp_bs
-    plot_vals_07_imp_bs[f"improved_baseline_{SR}"] = values_all_epochs_07_imp_bs
+    plot_vals_01_park_b2["Park-RCRNN"] = values_all_epochs_01_b2
+    plot_vals_07_park_b2["Park-RCRNN"] = values_all_epochs_07_b2
 
-print(f"Took: {timer(s_time, time.time())}")
+    print(f"Took: {timer(s_time, time.time())}")
 
 
 def di_c_T(list_of_dicts):
@@ -237,53 +274,87 @@ def plot_models(what_to_plot: List[config.PLOT_MODES], plot_vals, title):
 ### Results ###
 ###############
 
-### Baseline ###
-# Training
-plot_models(
-    [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
-    plot_vals_01_bs,
-    "baseline_tr_acc_loss",
-)
-# Validation
-plot_models(
-    [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
-    plot_vals_01_bs,
-    "baseline_val_acc_loss",
-)
-# PSDS + F1-Score
-plot_models(
-    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
-    plot_vals_01_bs,
-    "baseline_PSDS01",
-)
-plot_models(
-    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
-    plot_vals_07_bs,
-    "baseline_PSDS07",
-)
+if DO_SRs:
+    ### Baseline ###
+    # Training
+    plot_models(
+        [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
+        plot_vals_01_bs,
+        "baseline_tr_acc_loss",
+    )
+    # Validation
+    plot_models(
+        [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
+        plot_vals_01_bs,
+        "baseline_val_acc_loss",
+    )
+    # PSDS + F1-Score
+    plot_models(
+        [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+        plot_vals_01_bs,
+        "baseline_PSDS01",
+    )
+    plot_models(
+        [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+        plot_vals_07_bs,
+        "baseline_PSDS07",
+    )
 
+    ### Improved Baseline ###
+    # Training
+    plot_models(
+        [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
+        plot_vals_01_imp_bs,
+        "improved_baseline_tr_acc_loss",
+    )
+    # Validation
+    plot_models(
+        [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
+        plot_vals_01_imp_bs,
+        "improved_baseline_val_acc_loss",
+    )
+    # PSDS + F1-Score
+    plot_models(
+        [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+        plot_vals_01_imp_bs,
+        "improved_baseline_PSDS01",
+    )
+    plot_models(
+        [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+        plot_vals_07_imp_bs,
+        "improved_baseline_PSDS07",
+    )
 
-### Improved Baseline ###
-# Training
-plot_models(
-    [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
-    plot_vals_01_imp_bs,
-    "improved_baseline_tr_acc_loss",
-)
-# Validation
-plot_models(
-    [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
-    plot_vals_01_imp_bs,
-    "improved_baseline_val_acc_loss",
-)
-# PSDS + F1-Score
-plot_models(
-    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
-    plot_vals_01_imp_bs,
-    "improved_baseline_PSDS01",
-)
-plot_models(
-    [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
-    plot_vals_07_imp_bs,
-    "improved_baseline_PSDS07",
-)
+if DO_ME1:
+    ### Kim b1 & Park b2 ###
+    plot_vals_01 = {}
+    plot_vals_01.update(plot_vals_01_kim_b1)
+    plot_vals_01.update(plot_vals_01_park_b2)
+
+    plot_vals_07 = {}
+    plot_vals_07.update(plot_vals_07_kim_b1)
+    plot_vals_07.update(plot_vals_07_park_b2)
+
+    # Training
+    plot_models(
+        [config.PLOT_MODES.TR_ACC, config.PLOT_MODES.TR_LOSS],
+        plot_vals_01,
+        "me1_tr_acc_loss",
+    )
+    # Validation
+    plot_models(
+        [config.PLOT_MODES.VAL_ACC, config.PLOT_MODES.VAL_LOSS],
+        plot_vals_01,
+        "me1_val_acc_loss",
+    )
+    # PSDS + F1-Score
+    plot_models(
+        [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+        plot_vals_01,
+        "me1_PSDS01",
+    )
+    plot_models(
+        [config.PLOT_MODES.PSDS, config.PLOT_MODES.FSCORE],
+        plot_vals_07,
+        "me1_PSDS07",
+    )
