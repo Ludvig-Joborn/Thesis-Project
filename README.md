@@ -1,56 +1,33 @@
-# Thesis-Project
-This is repository for Mattias & Ludvig's master thesis work. It's pretty cool, if you ask me.
+# Thesis Project
+An AI and Machine Learning project developed by Mattias Beming and Ludvig Joborn (former students at Linköping University).
 
-```
-Python version 3.8.x was used in this project.
-```
+The thesis work was conducted during the spring of 2022 in collbaoration with The Swedish Police Authority - National Forensic Centre (sv. Polismyndigheten - Nationellt Forensiskt Centrum).
 
-## Project Setup:
+[Insert introduction here]
 
-```bash
-# Clone the project
-git clone git@github.com:Ludvig-Joborn/Thesis-Project.git
+## Overview
+- [Thesis Project](#thesis-project)
+  - [Overview](#overview)
+  - [Architecture](#architecture)
+  - [Setup](#setup)
+  - [Acquire and Build Datasets](#acquire-and-build-datasets)
+  - [Run Code](#run-code)
 
-# Change to project directory
-cd Thesis-Project
 
-# Create a virutal environment
-python -m venv venv
+## Architecture
+[Insert content here]
 
-# Activate the environment (bash)
-source venv/bin/activate # may be 'venv/Scripts/activate'
-# Activate the environment (powershell)
-./venv/Scripts/Activate.ps1
+![architecture](docs/thesis_architecture.png)
 
-# Install required packages
-pip3 install -r requirements.txt
-```
-## Test Code
-Run the test code below to see if the installation was successful:
-```Python
-import torch
-import torchaudio
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 
-x = torch.rand(5, 3)
-print("Randomized tensor test:")
-print(x, "\n")
+## Setup
+[Insert content here]
+link to file -> [setup.md](docs/setup.md)
 
-print("torch version:", torch.__version__)
-print("torchaudio version:", torchaudio.__version__)
-print("CUDA available:", torch.cuda.is_available())
-```
+## Acquire and Build Datasets
+[Insert content here]
+link to file -> [datasets.md](docs/datasets.md)
 
-If this error shows for torchaudio: 
-`UserWarning: No audio backend is available.` \
-Execute the following:
-
-SoundFile for Windows:
-```bash
-pip install PySoundFile
-```
-Sox for Linux:
-```bash
-pip install sox
-```
+## Run Code
+[Insert content here]
+link to file -> [run.md](docs/run.md)
