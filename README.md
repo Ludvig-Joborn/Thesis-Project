@@ -1,9 +1,11 @@
 # Thesis Project
 An AI and Machine Learning project developed by Mattias Beming and Ludvig Joborn (former students at Linköping University).
 
-The thesis work was conducted during the spring of 2022 in collbaoration with The Swedish Police Authority - National Forensic Centre (sv. Polismyndigheten - Nationellt Forensiskt Centrum).
+The thesis work was conducted during the spring of 2022 in collaboration with The Swedish Police Authority - National Forensic Centre (sv. Polismyndigheten - Nationellt Forensiskt Centrum).
 
 [Insert introduction here]
+[TODO: write text about publication]
+[Publication](http://liu.diva-portal.org/smash/record.jsf?pid=diva2%3A1688428&dswid=-7955)
 
 ## Overview
 - [Thesis Project](#thesis-project)
