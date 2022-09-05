@@ -181,7 +181,7 @@ def add_run_args(parser: argparse.PARSER):
         "-plot",
         "--plot",
         action="store_true",
-        help=("The instructions for what to plot will be given at a later time."),
+        help=("Plots metrics given by 'WHAT_TO_PLOT' in config.py."),
     )
     return parser
 
@@ -247,7 +247,7 @@ def train_main(
         end_epoch = config.EPOCHS
         # Model Paths for saving model during training
         model_basepath = create_basepath(
-            Path(config.SAVED_MODELS_DIR) / str(DS_train) / str(model_tr) / "train"
+            Path(config.SAVED_MODELS_DIR_EXT) / str(DS_train) / str(model_tr) / "train"
         )
 
         # Prerequisite: All sample rates within a dataset must be equal (or resampled
@@ -569,7 +569,7 @@ def run(
     log_path = create_basepath(Path(config.LOG_DIR)) / filename
     log = Logger("RUN-Logger", log_path)
 
-    DS_train_basepath = Path(config.SAVED_MODELS_DIR) / DS_train_name
+    DS_train_basepath = Path(config.SAVED_MODELS_DIR_EXT) / DS_train_name
 
     # Force retraining of all models from 'picked_models'
     if args_run.force_retrain:

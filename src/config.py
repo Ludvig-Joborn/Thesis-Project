@@ -230,8 +230,12 @@ MIN_DETECTION_INTERVAL_SEC = 0.8
 ############
 ### MISC ###
 ############
-SAVED_MODELS_DIR = (
-    "E:/saved_models/"
+# NOTE: The base of the path to the directory of saved models
+SAVED_MODEL_DIR = "E:/saved_models/"
+
+# Directory to saved models
+SAVED_MODELS_DIR_EXT = (
+    SAVED_MODEL_DIR
     + (f"seed_{SEED}/" if DETERMINISTIC_RUN else "nondeterministic/")
     + f"SR{SAMPLE_RATE}_"
     f"lr0{str(LR_SGD).split('.')[1]}_"
