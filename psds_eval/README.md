@@ -3,6 +3,8 @@ The following repository is under MIT-license and full credit is given to the or
 
 Note that in order for PSD-Score to be obtained only for one class namely "Speech", we had to modify the code. We cannot however guarantee that the changes we made are correct or will work for others with the same task. 
 
+NOTE: The rest of this README is inherited from the original PSDS repository. Parts of it may not apply to this project.
+
 # Polyphonic Sound Detection Score (PSDS)
 
 `psds_eval` is a Python package containing a library to
@@ -68,10 +70,10 @@ read the paper accessible from the link above.
    The confusion matrix for this example would be:
 
    |         | Class 1 | Class 2 | Class 3 | WORLD |
-   |---------|:-------:|:-------:|:-------:|:-----:|
-   | Class 1 |    1    | | |  1 |
-   | Class 2 | | 1 | | |
-   | Class 3 | 1 | | | 1 |
+   | ------- | :-----: | :-----: | :-----: | :---: |
+   | Class 1 |    1    |         |         |   1   |
+   | Class 2 |         |    1    |         |       |
+   | Class 3 |    1    |         |         |   1   |
 
    PSDS also allows a custom weight to be applied to CTs in order to define
    their importance in the final evaluation. Such weighting can be crucial when
@@ -238,37 +240,37 @@ the event
 
 An example of ground truth table
 
-|filename|onset|offset|event\_label|
-|--------:|-----:|------:|-------:|
-|test.wav  |   2.0 |   20.0 |   c1|
-|test.wav  |  12.0 |   35.0 |   c2|
-|test.wav  |  42.0 |   47.0 |   c3|
-|test2.wav |   5.0 |   20.0 |   c1|
-|test2.wav |   5.0 |   30.0 |   c2|
-|test2.wav |  42.0 |   47.0 |   c3|
-|test3.wav |   5.0 |   18.0 |   c1|
-|test3.wav |  10.0 |   30.0 |   c2|
-|test3.wav |  42.0 |   48.0 |   c3|
+|  filename | onset | offset | event\_label |
+| --------: | ----: | -----: | -----------: |
+|  test.wav |   2.0 |   20.0 |           c1 |
+|  test.wav |  12.0 |   35.0 |           c2 |
+|  test.wav |  42.0 |   47.0 |           c3 |
+| test2.wav |   5.0 |   20.0 |           c1 |
+| test2.wav |   5.0 |   30.0 |           c2 |
+| test2.wav |  42.0 |   47.0 |           c3 |
+| test3.wav |   5.0 |   18.0 |           c1 |
+| test3.wav |  10.0 |   30.0 |           c2 |
+| test3.wav |  42.0 |   48.0 |           c3 |
 
 An example of detections table
 
-|filename|onset|offset|event\_label|
-|--------:|-----:|------:|-------:|
-|test.wav |    0.0  |  19.0  |   c1|
-|test.wav |   40.0  |  45.0  |   c1|
-|test.wav |   11.0  |  25.0  |   c2|
-|test.wav |   27.0  |  30.0  |   c2|
-|test.wav |   32.0  |  41.5  |   c2|
-|test.wav |   38.0  |  48.0  |   c3|
+| filename | onset | offset | event\_label |
+| -------: | ----: | -----: | -----------: |
+| test.wav |   0.0 |   19.0 |           c1 |
+| test.wav |  40.0 |   45.0 |           c1 |
+| test.wav |  11.0 |   25.0 |           c2 |
+| test.wav |  27.0 |   30.0 |           c2 |
+| test.wav |  32.0 |   41.5 |           c2 |
+| test.wav |  38.0 |   48.0 |           c3 |
 
 #### 2. `metadata` table format
 Simply contains the duration (in seconds) for each file in the dataset:
 
-|filename|duration|
-|-------:|-------:|
-|test.wav  | 50.0|
-|test2.wav | 50.0|
-|test3.wav | 50.0|
+|  filename | duration |
+| --------: | -------: |
+|  test.wav |     50.0 |
+| test2.wav |     50.0 |
+| test3.wav |     50.0 |
 
 **Important notes**
 - `metadata` and `ground_truth` tables must have the same unique values in the
