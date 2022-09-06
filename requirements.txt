@@ -1,9 +1,9 @@
 
 # Pytorch needs to download ~2.5Gb
--f https://download.pytorch.org/whl/cu113/torch_stable.html
 torch==1.10.1+cu113 
 torchvision==0.11.2+cu113 
 torchaudio==0.10.1+cu113
+--find-links https://download.pytorch.org/whl/torch_stable.html
 
 #
 matplotlib==3.5.1
@@ -13,4 +13,4 @@ numpy==1.21
 pandas==1.4.0
 nnAudio==0.3.1
 julius==0.2.6
-psutils==5.9.0
+psutil==5.9.0

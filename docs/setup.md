@@ -24,6 +24,11 @@ source venv/bin/activate # may be 'venv/Scripts/activate'
 
 # Install required packages
 pip3 install -r requirements.txt
+
+# Install PSD-Score (metric)
+cd psds_eval/
+pip install -Ue .
+cd ..
 ```
 ## Test Code
 Run the test code below to see if the installation was successful:
