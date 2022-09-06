@@ -22,9 +22,9 @@ A *simplified* image of the project architecture is shown below. Understanding t
 
 Arrows indicate code-wise dependencies. 
 
-**Note**: `evaluate.py` has been split up into `validate.py`, `test.py` and `predict.py`, but they all fit where `evaluate.py` is currently placed.
+**Note**: `evaluate.py` has been split up into `validate.py`, `eval.py` and `predict.py`, but they all fit where `evaluate.py` is currently placed.
 
-![architecture](docs/thesis_architecture.png)
+![architecture](docs/thesis-architecture.png)
 
 
 ## Setup
