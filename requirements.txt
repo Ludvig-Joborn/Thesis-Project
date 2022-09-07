@@ -8,9 +8,9 @@ torchaudio==0.10.1+cu113
 #
 matplotlib==3.5.1
 tqdm==4.62.3
-librosa==0.8.1
 numpy==1.21
 pandas==1.4.0
 nnAudio==0.3.1
 julius==0.2.6
 psutil==5.9.0
+SoundFile==0.10.3.post1

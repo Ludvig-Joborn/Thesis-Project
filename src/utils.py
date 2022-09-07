@@ -3,7 +3,6 @@ from torch.utils.data import Dataset
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from psds_eval import PSDSEval
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Union, Tuple
@@ -13,6 +12,7 @@ import psutil
 
 # User defined imports
 import config
+from psds_eval import PSDSEval
 from models.model_utils import activation, calc_nr_correct_predictions
 
 

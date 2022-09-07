@@ -23,7 +23,7 @@ source venv/bin/activate # may be 'venv/Scripts/activate'
 ./venv/Scripts/Activate.ps1
 
 # Install required packages
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 
 # Install PSD-Score (metric)
 cd psds_eval/
@@ -47,15 +47,9 @@ print("torchaudio version:", torchaudio.__version__)
 print("CUDA available:", torch.cuda.is_available())
 ```
 
-If the following error is shown for torchaudio: 
+If you're on Linux and the following error is shown for torchaudio: 
 `UserWarning: No audio backend is available.` \
-Execute the following:
-
-SoundFile for Windows:
-```bash
-pip install PySoundFile
-```
-Sox for Linux:
+Try installing Sox:
 ```bash
 pip install sox
 ```
