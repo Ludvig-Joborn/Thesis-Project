@@ -1,7 +1,6 @@
 import torch
 import torchaudio.transforms as T
 import matplotlib.pyplot as plt
-import librosa
 from torch.utils.data import Dataset
 from typing import Callable, List, Dict
 import numpy as np
@@ -16,17 +15,6 @@ from utils import get_datetime, psd_score, create_basepath
 from models_dict import Model
 from logger import CustomLogger as Logger
 
-
-def plot_spectrogram(spec, title=None, ylabel="freq_bin", aspect="auto", xmax=None):
-    fig, axs = plt.subplots(1, 1)
-    axs.set_title(title or "Spectrogram (db)")
-    axs.set_ylabel(ylabel)
-    axs.set_xlabel("frame")
-    im = axs.imshow(librosa.power_to_db(spec), origin="lower", aspect=aspect)
-    if xmax:
-        axs.set_xlim((0, xmax))
-    fig.colorbar(im, ax=axs)
-    plt.show(block=True)
 
 
 def plot_waveform(waveform, sample_rate, title="Waveform", xlim=None, ylim=None):
